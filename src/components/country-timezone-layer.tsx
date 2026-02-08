@@ -86,9 +86,47 @@ function splitAntimeridianFeature(
     }));
 }
 
+function tagFeature(feature: GeoJSON.Feature, id: string) {
+  const name = (feature.properties?.name as string) ?? "";
+  let tzKey = countryTimezoneMap[id];
+  if (!tzKey && name) {
+    tzKey = nameFallbackTimezone[name];
+  }
+  feature.properties = {
+    ...feature.properties,
+    tz_color: (tzKey && timezoneColors[tzKey]) || "",
+  };
+}
+
+// Build the fill-opacity expression: highlighted timezone gets boosted opacity
+function buildOpacityExpr(
+  hoveredColor: string | null
+): maplibregl.ExpressionSpecification {
+  if (!hoveredColor) {
+    // Default: 0.35 for colored countries, 0 for uncolored
+    return [
+      "case",
+      ["!=", ["get", "tz_color"], ""],
+      0.35,
+      0,
+    ] as unknown as maplibregl.ExpressionSpecification;
+  }
+
+  // Hovered timezone gets bright, others dim slightly
+  return [
+    "case",
+    ["==", ["get", "tz_color"], hoveredColor],
+    0.6,
+    ["!=", ["get", "tz_color"], ""],
+    0.2,
+    0,
+  ] as unknown as maplibregl.ExpressionSpecification;
+}
+
 export function CountryTimezoneLayer() {
   const { map, isLoaded } = useMap();
   const addedRef = useRef(false);
+  const hoveredColorRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!map || !isLoaded || addedRef.current) return;
@@ -114,7 +152,6 @@ export function CountryTimezoneLayer() {
           if (id === "010") continue;
 
           if (ANTIMERIDIAN_IDS.has(id)) {
-            // Split into east/west halves
             const parts = splitAntimeridianFeature(feature);
             for (const part of parts) {
               tagFeature(part, id);
@@ -136,7 +173,6 @@ export function CountryTimezoneLayer() {
           data: processedGeojson,
         });
 
-        // Insert fill layer below symbol layers so labels/markers sit on top
         const firstSymbolLayer = map
           .getStyle()
           ?.layers?.find((l) => l.type === "symbol");
@@ -153,7 +189,7 @@ export function CountryTimezoneLayer() {
                 ["get", "tz_color"],
                 "rgba(0,0,0,0)",
               ] as unknown as maplibregl.ExpressionSpecification,
-              "fill-opacity": 0.35,
+              "fill-opacity": buildOpacityExpr(null),
             },
           },
           firstSymbolLayer?.id
@@ -173,7 +209,7 @@ export function CountryTimezoneLayer() {
           firstSymbolLayer?.id
         );
 
-        // Timezone boundary lines (native GeoJSON layer, no MapRoute artifacts)
+        // Timezone boundary lines
         map.addSource(TZ_LINES_SOURCE, {
           type: "geojson",
           data: buildTimezoneLines(),
@@ -192,6 +228,45 @@ export function CountryTimezoneLayer() {
           },
           firstSymbolLayer?.id
         );
+
+        // Hover: highlight all countries in the same timezone
+        const handleMouseMove = (
+          e: maplibregl.MapMouseEvent & {
+            features?: maplibregl.MapGeoJSONFeature[];
+          }
+        ) => {
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: [LAYER_ID],
+          });
+
+          if (features.length > 0) {
+            const tzColor = features[0].properties?.tz_color as string;
+            if (tzColor && tzColor !== hoveredColorRef.current) {
+              hoveredColorRef.current = tzColor;
+              map.setPaintProperty(
+                LAYER_ID,
+                "fill-opacity",
+                buildOpacityExpr(tzColor)
+              );
+              map.getCanvas().style.cursor = "pointer";
+            }
+          }
+        };
+
+        const handleMouseLeave = () => {
+          if (hoveredColorRef.current) {
+            hoveredColorRef.current = null;
+            map.setPaintProperty(
+              LAYER_ID,
+              "fill-opacity",
+              buildOpacityExpr(null)
+            );
+            map.getCanvas().style.cursor = "";
+          }
+        };
+
+        map.on("mousemove", LAYER_ID, handleMouseMove);
+        map.on("mouseleave", LAYER_ID, handleMouseLeave);
 
         addedRef.current = true;
       } catch (err) {
@@ -217,16 +292,4 @@ export function CountryTimezoneLayer() {
   }, [map, isLoaded]);
 
   return null;
-}
-
-function tagFeature(feature: GeoJSON.Feature, id: string) {
-  const name = (feature.properties?.name as string) ?? "";
-  let tzKey = countryTimezoneMap[id];
-  if (!tzKey && name) {
-    tzKey = nameFallbackTimezone[name];
-  }
-  feature.properties = {
-    ...feature.properties,
-    tz_color: (tzKey && timezoneColors[tzKey]) || "",
-  };
 }
