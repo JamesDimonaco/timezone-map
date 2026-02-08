@@ -26,6 +26,7 @@ import {
   type TzHoverInfo,
   type CountryClickInfo,
 } from "@/components/country-timezone-layer";
+import { DayNightLayer } from "@/components/day-night-layer";
 
 // Component that renders timezone labels pinned to bottom of screen,
 // positioned horizontally to match the map's longitude projection
@@ -446,6 +447,9 @@ export function TimezoneMap() {
           highlightColor={effectiveMapHighlight}
           onMapInteract={handleMapInteract}
         />
+
+        {/* Day/night shadow overlay */}
+        <DayNightLayer />
 
         {/* Timezone labels pinned to bottom of screen */}
         <TimezoneZoneLabels
