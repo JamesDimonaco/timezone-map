@@ -17,7 +17,7 @@ export const heartbeat = mutation({
     if (!UUID_RE.test(args.sessionId)) return;
     if (args.fuzzedLat < -90 || args.fuzzedLat > 90) return;
     if (args.fuzzedLng < -180 || args.fuzzedLng > 180) return;
-    if (!args.timezone.includes("/")) return;
+    if (!args.timezone.includes("/") && args.timezone !== "UTC") return;
 
     const existing = await ctx.db
       .query("presence")
@@ -44,13 +44,16 @@ export const getActiveUsers = query({
   args: {},
   handler: async (ctx) => {
     const cutoff = Date.now() - STALE_MS;
-    const users = await ctx.db
+    const allActive = await ctx.db
       .query("presence")
       .withIndex("by_last_seen", (q) => q.gt("lastSeen", cutoff))
-      .take(MAX_ACTIVE_USERS);
+      .collect();
+
+    const count = allActive.length;
+    const users = allActive.slice(0, MAX_ACTIVE_USERS);
 
     return {
-      count: users.length,
+      count,
       users: users.map((u) => ({
         fuzzedLat: u.fuzzedLat,
         fuzzedLng: u.fuzzedLng,

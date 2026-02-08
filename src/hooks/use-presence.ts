@@ -26,7 +26,8 @@ export function usePresence(
     );
 
     const sendHeartbeat = () => {
-      heartbeat({ sessionId, fuzzedLat, fuzzedLng, timezone: userTimezone });
+      heartbeat({ sessionId, fuzzedLat, fuzzedLng, timezone: userTimezone })
+        .catch(() => {});
     };
 
     sendHeartbeat();
