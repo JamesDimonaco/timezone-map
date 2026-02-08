@@ -369,6 +369,57 @@ export function TimezoneMap() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareCities, setCompareCities] = useState<TimezoneCity[]>([]);
 
+  // Deep linking: parse ?compare=London,Tokyo on mount
+  const [initialMapView] = useState(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const lat = params.get("lat");
+    const lng = params.get("lng");
+    const zoom = params.get("zoom");
+    if (lat && lng) {
+      return {
+        center: [parseFloat(lng), parseFloat(lat)] as [number, number],
+        zoom: zoom ? parseFloat(zoom) : 2,
+      };
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const compareParam = params.get("compare");
+    if (compareParam) {
+      const names = compareParam.split(",").map((n) => n.trim());
+      const matched: TimezoneCity[] = [];
+      for (const name of names) {
+        const city = timezoneCities.find(
+          (c) => c.name.toLowerCase() === name.toLowerCase()
+        );
+        if (city && matched.length < 5) matched.push(city);
+      }
+      if (matched.length > 0) {
+        setCompareCities(matched);
+        setCompareOpen(true);
+      }
+    }
+  }, []);
+
+  // Update URL when compare cities change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (compareCities.length > 0) {
+      url.searchParams.set(
+        "compare",
+        compareCities.map((c) => c.name).join(",")
+      );
+    } else {
+      url.searchParams.delete("compare");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, [compareCities]);
+
   // Update clock every second
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -449,7 +500,12 @@ export function TimezoneMap() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
-      <Map center={[20, 20]} zoom={2} minZoom={1.5} maxZoom={8}>
+      <Map
+        center={initialMapView?.center ?? [20, 20]}
+        zoom={initialMapView?.zoom ?? 2}
+        minZoom={1.5}
+        maxZoom={8}
+      >
         <MapControls
           position="bottom-right"
           showZoom
