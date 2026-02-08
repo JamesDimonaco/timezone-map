@@ -144,7 +144,7 @@ function TimezoneZoneLabels({
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-0 left-0 right-0 z-10 h-20 pointer-events-none overflow-hidden"
+      className="absolute bottom-0 left-0 right-0 z-10 h-16 sm:h-20 pointer-events-none overflow-hidden"
     >
 
       {/* Midnight date line island */}
@@ -189,7 +189,7 @@ function TimezoneZoneLabels({
         return (
           <div
             key={pos.key}
-            className="absolute bottom-2 -translate-x-1/2 flex flex-col items-center select-none pointer-events-auto cursor-pointer transition-all duration-150"
+            className="absolute bottom-1 sm:bottom-2 -translate-x-1/2 flex flex-col items-center select-none pointer-events-auto cursor-pointer transition-all duration-150"
             style={{
               left: pos.x,
               transform: `translateX(-50%) ${isHighlighted ? "scale(1.25) translateY(-4px)" : ""}`,
@@ -200,7 +200,7 @@ function TimezoneZoneLabels({
             onClick={() => onLabelClick?.(color)}
           >
             <div
-              className="rounded-md px-1.5 py-0.5 text-white font-mono font-bold text-[11px] leading-tight shadow-sm whitespace-nowrap transition-all duration-150"
+              className="rounded-md px-1 sm:px-1.5 py-0.5 text-white font-mono font-bold text-[9px] sm:text-[11px] leading-tight shadow-sm whitespace-nowrap transition-all duration-150"
               style={{
                 backgroundColor: color,
                 boxShadow: isHighlighted
@@ -214,7 +214,7 @@ function TimezoneZoneLabels({
               </span>
             </div>
             <span
-              className="text-[9px] font-mono font-semibold mt-0.5 transition-all duration-150"
+              className="text-[7px] sm:text-[9px] font-mono font-semibold mt-0.5 transition-all duration-150"
               style={{
                 color,
                 opacity: isHighlighted ? 1 : 0.8,
@@ -284,12 +284,16 @@ function CountryPopup({
   const date = info.tzid ? formatDateInTimezone(info.tzid) : "";
   const regionName = info.tzid?.split("/").pop()?.replace(/_/g, " ") || "";
 
+  // Constrain popup position to viewport
+  const left = Math.max(140, Math.min(info.point.x, window.innerWidth - 140));
+  const top = Math.max(280, info.point.y - 8);
+
   return (
     <div
       className="fixed z-50"
       style={{
-        left: info.point.x,
-        top: info.point.y - 8,
+        left,
+        top,
         transform: "translate(-50%, -100%)",
       }}
     >
@@ -659,7 +663,7 @@ export function TimezoneMap() {
 
       {/* Compare panel */}
       {compareOpen && (
-        <div className="absolute top-20 left-4 z-20">
+        <div className="absolute top-14 sm:top-20 left-0 sm:left-4 right-0 sm:right-auto z-20 px-2 sm:px-0">
           <ComparePanel
             compareCities={compareCities}
             onAdd={handleCompareAdd}
@@ -669,24 +673,26 @@ export function TimezoneMap() {
         </div>
       )}
 
-      {/* Timezone hover tooltip */}
-      <TzTooltip info={tzHover} />
+      {/* Timezone hover tooltip (hidden on touch devices) */}
+      <div className="hidden sm:block">
+        <TzTooltip info={tzHover} />
+      </div>
 
       {/* Country click popup */}
       <CountryPopup info={countryClick} onClose={() => setCountryClick(null)} />
 
       {/* Top bar */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between gap-3 pointer-events-none">
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-start justify-between gap-2 sm:gap-3 pointer-events-none">
         {/* Title + user time */}
-        <div className="pointer-events-auto rounded-xl border bg-background/90 backdrop-blur-md shadow-lg p-3">
+        <div className="pointer-events-auto rounded-xl border bg-background/90 backdrop-blur-md shadow-lg p-2 sm:p-3">
           <div className="flex items-center gap-2">
-            <Globe className="size-5 text-primary" />
-            <h2 className="text-base font-bold">Time Map</h2>
+            <Globe className="size-4 sm:size-5 text-primary" />
+            <h2 className="text-sm sm:text-base font-bold">Time Map</h2>
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-sm">
-            <Clock className="size-3.5 text-muted-foreground" />
+          <div className="mt-1 sm:mt-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
+            <Clock className="size-3 sm:size-3.5 text-muted-foreground" />
             <span className="font-semibold tabular-nums">{userTime}</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground text-[10px] sm:text-xs hidden sm:inline">
               {userDate} &middot;{" "}
               {userTimezone.split("/").pop()?.replace("_", " ")}
             </span>
@@ -694,11 +700,11 @@ export function TimezoneMap() {
         </div>
 
         {/* Search + toggle */}
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2">
           {/* Compare toggle */}
           <button
             onClick={() => setCompareOpen(!compareOpen)}
-            className={`flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${compareOpen ? "ring-2 ring-primary/50" : ""}`}
+            className={`flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors ${compareOpen ? "ring-2 ring-primary/50" : ""}`}
             title="Compare times"
           >
             <GitCompareArrows className="size-4 text-muted-foreground" />
@@ -713,7 +719,7 @@ export function TimezoneMap() {
               setShowCities(!showCities);
               if (!showCities === false) setSelectedCity(null);
             }}
-            className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors"
             title={showCities ? "Hide cities" : "Show cities"}
           >
             {showCities ? (
@@ -739,7 +745,7 @@ export function TimezoneMap() {
                   setSearchOpen(true);
                 }}
                 onFocus={() => setSearchOpen(true)}
-                className="w-48 bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
+                className="w-28 sm:w-48 bg-transparent px-2 py-2 sm:py-2.5 text-sm outline-none placeholder:text-muted-foreground"
               />
               {searchQuery && (
                 <button

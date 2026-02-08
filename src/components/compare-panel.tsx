@@ -175,7 +175,7 @@ export function ComparePanel({
   const overlap = getWorkingHoursOverlap();
 
   return (
-    <div className="pointer-events-auto w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg overflow-hidden">
+    <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg overflow-hidden max-h-[70vh] overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b">
         <div className="flex items-center gap-2">
