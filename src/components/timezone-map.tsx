@@ -29,6 +29,9 @@ import {
 } from "@/components/country-timezone-layer";
 import { DayNightLayer } from "@/components/day-night-layer";
 import { ComparePanel } from "@/components/compare-panel";
+import { usePresence } from "@/hooks/use-presence";
+import { LiveUsersLayer } from "@/components/live-users-layer";
+import { ActiveUsersBadge } from "@/components/active-users-badge";
 
 // Component that renders timezone labels pinned to bottom of screen,
 // positioned horizontally to match the map's longitude projection
@@ -371,6 +374,9 @@ export function TimezoneMap() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareCities, setCompareCities] = useState<TimezoneCity[]>([]);
 
+  // Presence heartbeat
+  usePresence(userLocation, userTimezone);
+
   // Deep linking: parse ?compare=London,Tokyo on mount
   const [initialMapView] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -534,6 +540,9 @@ export function TimezoneMap() {
 
         {/* Day/night shadow overlay */}
         <DayNightLayer />
+
+        {/* Live users presence dots */}
+        <LiveUsersLayer />
 
         {/* Timezone labels pinned to bottom of screen */}
         <TimezoneZoneLabels
@@ -708,6 +717,7 @@ export function TimezoneMap() {
               {userTimezone.split("/").pop()?.replace("_", " ")}
             </span>
           </div>
+          <ActiveUsersBadge />
         </div>
 
         {/* Search + toggle */}
