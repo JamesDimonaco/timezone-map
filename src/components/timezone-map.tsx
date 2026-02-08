@@ -20,13 +20,14 @@ import {
   countryFlag,
   type TimezoneCity,
 } from "@/lib/timezones";
-import { Clock, MapPin, Globe, Search, X, Eye, EyeOff } from "lucide-react";
+import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows } from "lucide-react";
 import {
   CountryTimezoneLayer,
   type TzHoverInfo,
   type CountryClickInfo,
 } from "@/components/country-timezone-layer";
 import { DayNightLayer } from "@/components/day-night-layer";
+import { ComparePanel } from "@/components/compare-panel";
 
 // Component that renders timezone labels pinned to bottom of screen,
 // positioned horizontally to match the map's longitude projection
@@ -364,6 +365,10 @@ export function TimezoneMap() {
   const [labelHoverColor, setLabelHoverColor] = useState<string | null>(null);
   const [lockedColor, setLockedColor] = useState<string | null>(null);
 
+  // Compare panel state
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareCities, setCompareCities] = useState<TimezoneCity[]>([]);
+
   // Update clock every second
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -400,6 +405,18 @@ export function TimezoneMap() {
     setSelectedCity(city);
     setSearchOpen(false);
     setSearchQuery("");
+  }, []);
+
+  const handleCompareAdd = useCallback((city: TimezoneCity) => {
+    setCompareCities((prev) => {
+      if (prev.length >= 5) return prev;
+      if (prev.some((c) => c.name === city.name && c.country === city.country)) return prev;
+      return [...prev, city];
+    });
+  }, []);
+
+  const handleCompareRemove = useCallback((index: number) => {
+    setCompareCities((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleCountryClick = useCallback((info: CountryClickInfo) => {
@@ -584,6 +601,18 @@ export function TimezoneMap() {
           })}
       </Map>
 
+      {/* Compare panel */}
+      {compareOpen && (
+        <div className="absolute top-20 left-4 z-20">
+          <ComparePanel
+            compareCities={compareCities}
+            onAdd={handleCompareAdd}
+            onRemove={handleCompareRemove}
+            onClose={() => setCompareOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Timezone hover tooltip */}
       <TzTooltip info={tzHover} />
 
@@ -610,6 +639,18 @@ export function TimezoneMap() {
 
         {/* Search + toggle */}
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* Compare toggle */}
+          <button
+            onClick={() => setCompareOpen(!compareOpen)}
+            className={`flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-3 py-2.5 text-sm hover:bg-muted/50 transition-colors ${compareOpen ? "ring-2 ring-primary/50" : ""}`}
+            title="Compare times"
+          >
+            <GitCompareArrows className="size-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Compare
+            </span>
+          </button>
+
           {/* City toggle */}
           <button
             onClick={() => {
