@@ -21,12 +21,14 @@ import {
   getUtcOffsetKey,
   type TimezoneCity,
 } from "@/lib/timezones";
-import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows } from "lucide-react";
+import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows, ExternalLink, GripHorizontal } from "lucide-react";
 import {
   CountryTimezoneLayer,
   type TzHoverInfo,
   type CountryClickInfo,
 } from "@/components/country-timezone-layer";
+import Link from "next/link";
+import { cityToSlug } from "@/lib/slugs";
 import { DayNightLayer } from "@/components/day-night-layer";
 import { ComparePanel } from "@/components/compare-panel";
 import { usePresence } from "@/hooks/use-presence";
@@ -281,29 +283,95 @@ function TzTooltip({ info }: { info: TzHoverInfo }) {
   );
 }
 
-// Country info popup on click
-function CountryPopup({
+// Unified popup info type
+type PopupInfo = {
+  countryName: string;
+  lngLat: { lng: number; lat: number };
+  tzid: string;
+  utcOffset: string;
+  tzColor: string;
+  city: TimezoneCity | null;
+} | null;
+
+// Draggable unified popup card
+function UnifiedPopup({
   info,
   onClose,
+  onCompareAdd,
 }: {
-  info: CountryClickInfo;
+  info: PopupInfo;
   onClose: () => void;
+  onCompareAdd?: (city: TimezoneCity) => void;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const startRef = useRef({ x: 0, y: 0 });
+  const draggingRef = useRef(false);
+
+  // Reset position when popup changes
+  useEffect(() => {
+    offsetRef.current = { x: 0, y: 0 };
+    if (cardRef.current) {
+      cardRef.current.style.transform = "";
+    }
+  }, [info?.city?.name, info?.countryName]);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    draggingRef.current = true;
+    startRef.current = {
+      x: e.clientX - offsetRef.current.x,
+      y: e.clientY - offsetRef.current.y,
+    };
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    const dx = e.clientX - startRef.current.x;
+    const dy = e.clientY - startRef.current.y;
+    offsetRef.current = { x: dx, y: dy };
+    if (cardRef.current) {
+      cardRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    draggingRef.current = false;
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  }, []);
+
   if (!info) return null;
 
-  const flag = countryFlag(info.name);
-  const time = info.tzid ? formatTimeInTimezone(info.tzid) : "";
-  const date = info.tzid ? formatDateInTimezone(info.tzid) : "";
+  const flag = countryFlag(info.countryName);
+  const timezone = info.city?.timezone || info.tzid || "UTC";
+  const time = formatTimeInTimezone(timezone);
+  const date = formatDateInTimezone(timezone);
   const regionName = info.tzid?.split("/").pop()?.replace(/_/g, " ") || "";
 
   return (
     <div className="fixed bottom-24 right-2 sm:right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
-      <Card className="w-64 p-0 shadow-xl border bg-background/95 backdrop-blur-md overflow-hidden">
+      <Card
+        ref={cardRef}
+        className="w-64 p-0 shadow-xl border bg-background/95 backdrop-blur-md overflow-hidden will-change-transform"
+      >
+        {/* Drag handle */}
+        <div
+          className="flex items-center justify-center py-1 cursor-grab active:cursor-grabbing border-b border-border/50 hover:bg-muted/30 transition-colors"
+          style={{ touchAction: "none" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
+          <GripHorizontal className="size-4 text-muted-foreground/50" />
+        </div>
+
         <div className="p-3 space-y-2.5">
+          {/* Header: flag + country name + close */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {flag && <span className="text-lg">{flag}</span>}
-              <h3 className="font-semibold text-sm">{info.name}</h3>
+              <h3 className="font-semibold text-sm">{info.countryName}</h3>
             </div>
             <button
               onClick={onClose}
@@ -313,6 +381,25 @@ function CountryPopup({
             </button>
           </div>
 
+          {/* City name row with colored UTC badge (city clicks only) */}
+          {info.city && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{info.city.name}</span>
+              <Badge
+                variant="secondary"
+                className="text-[10px] font-mono"
+                style={{
+                  backgroundColor: info.tzColor + "20",
+                  color: info.tzColor,
+                  borderColor: info.tzColor + "40",
+                }}
+              >
+                {info.utcOffset}
+              </Badge>
+            </div>
+          )}
+
+          {/* Time card */}
           {info.tzid && (
             <div className="rounded-md bg-muted/50 p-2.5">
               <div className="flex items-center gap-2">
@@ -337,11 +424,32 @@ function CountryPopup({
             </div>
           )}
 
+          {/* Coordinates */}
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             <MapPin className="size-3" />
             {Math.abs(info.lngLat.lat).toFixed(1)}&deg;{info.lngLat.lat >= 0 ? "N" : "S"},{" "}
             {Math.abs(info.lngLat.lng).toFixed(1)}&deg;{info.lngLat.lng >= 0 ? "E" : "W"}
           </div>
+
+          {/* City-only actions: View details + Add to compare */}
+          {info.city && (
+            <div className="flex items-center gap-2 border-t pt-2">
+              <Link
+                href={`/time/${cityToSlug(info.city.name)}`}
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <ExternalLink className="size-3" />
+                View details
+              </Link>
+              <button
+                onClick={() => info.city && onCompareAdd?.(info.city)}
+                className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <GitCompareArrows className="size-3" />
+                Compare
+              </button>
+            </div>
+          )}
         </div>
       </Card>
     </div>
@@ -350,7 +458,6 @@ function CountryPopup({
 
 export function TimezoneMap() {
   const [, setNow] = useState(new Date());
-  const [selectedCity, setSelectedCity] = useState<TimezoneCity | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCities, setShowCities] = useState(true);
@@ -364,7 +471,11 @@ export function TimezoneMap() {
 
   // Hover/click state for map layers
   const [tzHover, setTzHover] = useState<TzHoverInfo>(null);
-  const [countryClick, setCountryClick] = useState<CountryClickInfo>(null);
+  const [popupInfo, setPopupInfo] = useState<PopupInfo>(null);
+
+  // Timestamp of last city marker click — prevents the map's country click
+  // handler from overwriting the city popup (both events fire on same click)
+  const cityClickTsRef = useRef(0);
 
   // Label interaction state
   const [labelHoverColor, setLabelHoverColor] = useState<string | null>(null);
@@ -461,7 +572,17 @@ export function TimezoneMap() {
     : [];
 
   const handleCitySelect = useCallback((city: TimezoneCity) => {
-    setSelectedCity(city);
+    const utcKey = getUtcOffsetKey(city.timezone);
+    const color = timezoneColors[utcKey] || timezoneColors[city.utcOffset] || "#6366f1";
+    cityClickTsRef.current = Date.now();
+    setPopupInfo({
+      countryName: city.country,
+      lngLat: { lng: city.lng, lat: city.lat },
+      tzid: city.timezone,
+      utcOffset: city.utcOffset,
+      tzColor: color,
+      city,
+    });
     setSearchOpen(false);
     setSearchQuery("");
   }, []);
@@ -479,7 +600,17 @@ export function TimezoneMap() {
   }, []);
 
   const handleCountryClick = useCallback((info: CountryClickInfo) => {
-    setCountryClick(info);
+    if (!info) return;
+    // Skip if a city marker was just clicked (both fire on the same click)
+    if (Date.now() - cityClickTsRef.current < 200) return;
+    setPopupInfo({
+      countryName: info.name,
+      lngLat: info.lngLat,
+      tzid: info.tzid,
+      utcOffset: info.utcOffset,
+      tzColor: info.tzColor,
+      city: null,
+    });
   }, []);
 
   // When hovering a bottom label, temporarily highlight that timezone on the map
@@ -595,14 +726,28 @@ export function TimezoneMap() {
         {showCities &&
           timezoneCities.map((city) => {
             const color = timezoneColors[city.utcOffset] || "#6366f1";
-            const isSelected = selectedCity?.name === city.name;
+            const isSelected = popupInfo?.city?.name === city.name;
 
             return (
               <MapMarker
                 key={`${city.name}-${city.country}`}
                 longitude={city.lng}
                 latitude={city.lat}
-                onClick={() => setSelectedCity(isSelected ? null : city)}
+                onClick={() => {
+                  cityClickTsRef.current = Date.now();
+                  if (isSelected) {
+                    setPopupInfo(null);
+                  } else {
+                    setPopupInfo({
+                      countryName: city.country,
+                      lngLat: { lng: city.lng, lat: city.lat },
+                      tzid: city.timezone,
+                      utcOffset: city.utcOffset,
+                      tzColor: color,
+                      city,
+                    });
+                  }
+                }}
               >
                 <MarkerContent>
                   <div className="group relative flex flex-col items-center">
@@ -624,54 +769,6 @@ export function TimezoneMap() {
                     </div>
                   </div>
                 </MarkerContent>
-
-                {isSelected && (
-                  <MarkerPopup className="w-56 p-0" closeButton>
-                    <div className="space-y-2 p-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-foreground">
-                          {city.name}
-                        </h3>
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] font-mono"
-                          style={{
-                            backgroundColor: color + "20",
-                            color: color,
-                            borderColor: color + "40",
-                          }}
-                        >
-                          {city.utcOffset}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="size-3" />
-                        {city.country}
-                      </div>
-
-                      <div className="rounded-md bg-muted/50 p-2">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="size-3.5 text-muted-foreground" />
-                          <span className="text-lg font-bold tabular-nums">
-                            {formatTimeInTimezone(city.timezone)}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {formatDateInTimezone(city.timezone)}
-                        </p>
-                      </div>
-
-                      <div className="border-t pt-2 text-[11px] text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          Your time:
-                        </span>{" "}
-                        {userTime} (
-                        {userTimezone.split("/").pop()?.replace("_", " ")})
-                      </div>
-                    </div>
-                  </MarkerPopup>
-                )}
               </MapMarker>
             );
           })}
@@ -698,8 +795,8 @@ export function TimezoneMap() {
         <TzTooltip info={tzHover} />
       </div>
 
-      {/* Country click popup */}
-      <CountryPopup info={countryClick} onClose={() => setCountryClick(null)} />
+      {/* Unified popup (city or country click) */}
+      <UnifiedPopup info={popupInfo} onClose={() => setPopupInfo(null)} onCompareAdd={handleCompareAdd} />
 
       {/* Top bar */}
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-start justify-between gap-2 sm:gap-3 pointer-events-none">
@@ -738,7 +835,7 @@ export function TimezoneMap() {
           <button
             onClick={() => {
               setShowCities(!showCities);
-              if (!showCities === false) setSelectedCity(null);
+              if (!showCities === false) setPopupInfo(null);
             }}
             className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors"
             title={showCities ? "Hide cities" : "Show cities"}
