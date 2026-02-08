@@ -18,6 +18,7 @@ import {
   formatTimeInTimezone,
   formatDateInTimezone,
   countryFlag,
+  getUtcOffsetKey,
   type TimezoneCity,
 } from "@/lib/timezones";
 import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows } from "lucide-react";
@@ -43,7 +44,7 @@ function TimezoneZoneLabels({
   const { map, isLoaded } = useMap();
   const containerRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<
-    { key: string; x: number; visible: boolean }[]
+    { key: string; x: number; visible: boolean; zoneIndex: number }[]
   >([]);
 
   const updatePositions = useCallback(() => {
@@ -52,15 +53,21 @@ function TimezoneZoneLabels({
     const container = map.getContainer();
     const width = container.offsetWidth;
 
-    const newPositions = timezoneZoneLabels.map((zone) => {
-      // Place label at the CENTER of the zone (midpoint between this line and the next)
+    // With world copies, render labels for multiple copies (±360° offsets)
+    const newPositions: { key: string; x: number; visible: boolean; zoneIndex: number }[] = [];
+    timezoneZoneLabels.forEach((zone, i) => {
       const centerLng = zone.lng + 7.5;
-      const point = map.project([centerLng, 0]);
-      return {
-        key: zone.utcOffset,
-        x: point.x,
-        visible: point.x > -30 && point.x < width + 30,
-      };
+      for (const lngOffset of [-720, -360, 0, 360, 720]) {
+        const point = map.project([centerLng + lngOffset, 0]);
+        if (point.x > -30 && point.x < width + 30) {
+          newPositions.push({
+            key: `${zone.utcOffset}_${lngOffset}`,
+            x: point.x,
+            visible: true,
+            zoneIndex: i,
+          });
+        }
+      }
     });
 
     setPositions(newPositions);
@@ -83,7 +90,7 @@ function TimezoneZoneLabels({
   }, [map, isLoaded, updatePositions]);
 
   // Calculate the midnight line position (where local time = 00:00)
-  const [midnightX, setMidnightX] = useState<number | null>(null);
+  const [midnightPositions, setMidnightPositions] = useState<number[]>([]);
   const [midnightDates, setMidnightDates] = useState<{
     left: string;
     right: string;
@@ -97,21 +104,22 @@ function TimezoneZoneLabels({
     const utcS = now.getUTCSeconds();
     // Midnight occurs where UTC offset = -(utcH + utcM/60 + utcS/3600)
     const midnightOffset = -(utcH + utcM / 60 + utcS / 3600);
-    // Normalize longitude to -180..180
     let midnightLng = midnightOffset * 15;
     if (midnightLng < -180) midnightLng += 360;
     if (midnightLng > 180) midnightLng -= 360;
 
     const container = map.getContainer();
     const width = container.offsetWidth;
-    const point = map.project([midnightLng, 0]);
 
-    // Only show if on-screen
-    if (point.x >= -60 && point.x <= width + 60) {
-      setMidnightX(point.x);
-    } else {
-      setMidnightX(null);
+    // Render midnight line across world copies
+    const visible: number[] = [];
+    for (const lngOffset of [-720, -360, 0, 360, 720]) {
+      const point = map.project([midnightLng + lngOffset, 0]);
+      if (point.x >= -60 && point.x <= width + 60) {
+        visible.push(point.x);
+      }
     }
+    setMidnightPositions(visible);
 
     // West of midnight = current date, East of midnight = next date
     const tomorrow = new Date(now);
@@ -147,17 +155,18 @@ function TimezoneZoneLabels({
       className="absolute bottom-0 left-0 right-0 z-10 h-16 sm:h-20 pointer-events-none overflow-hidden"
     >
 
-      {/* Midnight date line island */}
-      {midnightX !== null && (
+      {/* Midnight date line island(s) — rendered for each visible world copy */}
+      {midnightPositions.map((mx, idx) => (
         <div
+          key={`midnight-${idx}`}
           className="absolute bottom-0 z-20 flex flex-col items-center select-none"
-          style={{ left: midnightX, transform: "translateX(-50%)" }}
+          style={{ left: mx, transform: "translateX(-50%)" }}
         >
           {/* Vertical midnight line */}
           <div className="w-px h-10 bg-gradient-to-b from-transparent via-amber-400/50 to-amber-400/80" />
           {/* Pulsing dot */}
           <div className="relative -mt-px">
-            <div className="absolute -inset-1 rounded-full bg-amber-400/30 animate-ping" />
+            {idx === 0 && <div className="absolute -inset-1 rounded-full bg-amber-400/30 animate-ping" />}
             <div className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]" />
           </div>
           {/* Date labels */}
@@ -171,12 +180,12 @@ function TimezoneZoneLabels({
             </span>
           </div>
         </div>
-      )}
+      ))}
 
-      {positions.map((pos, i) => {
+      {positions.map((pos) => {
         if (!pos.visible) return null;
 
-        const zone = timezoneZoneLabels[i];
+        const zone = timezoneZoneLabels[pos.zoneIndex];
         const color = timezoneColors[zone.utcOffset] || "#94a3b8";
         const time = formatTimeInTimezone(zone.timezone);
         const offsetLabel =
@@ -482,6 +491,13 @@ export function TimezoneMap() {
     setLockedColor(null);
   }, []);
 
+  // When user clicks locate, highlight their timezone
+  const handleLocate = useCallback(() => {
+    const utcKey = getUtcOffsetKey(userTimezone);
+    const color = utcKey ? timezoneColors[utcKey] : null;
+    if (color) setLockedColor(color);
+  }, [userTimezone]);
+
   // Effective highlight: label hover takes priority, then locked color
   const effectiveMapHighlight = labelHoverColor || lockedColor || null;
   // For labels: show highlight from any source (label hover, locked, or map hover)
@@ -504,6 +520,8 @@ export function TimezoneMap() {
           showZoom
           showLocate
           showFullscreen
+          locateZoom={3}
+          onLocate={handleLocate}
         />
 
         {/* Country timezone fill layer */}

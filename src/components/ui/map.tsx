@@ -715,6 +715,8 @@ type MapControlsProps = {
   showLocate?: boolean;
   /** Show fullscreen toggle button (default: false) */
   showFullscreen?: boolean;
+  /** Zoom level to fly to when locating user (default: 14) */
+  locateZoom?: number;
   /** Additional CSS classes for the controls container */
   className?: string;
   /** Callback with user coordinates when located */
@@ -769,6 +771,7 @@ function MapControls({
   showCompass = false,
   showLocate = false,
   showFullscreen = false,
+  locateZoom = 14,
   className,
   onLocate,
 }: MapControlsProps) {
@@ -798,7 +801,7 @@ function MapControls({
           };
           map?.flyTo({
             center: [coords.longitude, coords.latitude],
-            zoom: 14,
+            zoom: locateZoom,
             duration: 1500,
           });
           onLocate?.(coords);
@@ -810,7 +813,7 @@ function MapControls({
         }
       );
     }
-  }, [map, onLocate]);
+  }, [map, onLocate, locateZoom]);
 
   const handleFullscreen = useCallback(() => {
     const container = map?.getContainer();
