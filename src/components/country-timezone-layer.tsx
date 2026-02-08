@@ -1,33 +1,90 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useMap } from "@/components/ui/map";
-import { countryTimezoneMap } from "@/lib/country-timezones";
-import { timezoneColors } from "@/lib/timezones";
+import { timezoneColors, getUtcOffsetKey } from "@/lib/timezones";
 import * as topojson from "topojson-client";
 import type { Topology } from "topojson-specification";
 
-// Territories that don't have an ISO numeric ID in the dataset
-const nameFallbackTimezone: Record<string, string> = {
-  Kosovo: "UTC+1",
-  "N. Cyprus": "UTC+2",
-  Somaliland: "UTC+3",
-};
-
-// IDs that cross the anti-meridian and cause rendering artifacts
-const ANTIMERIDIAN_IDS = new Set(["010", "242", "643"]); // Antarctica, Fiji, Russia
-
-const SOURCE_ID = "countries-source";
-const LAYER_ID = "countries-fill";
+const TZ_SOURCE = "tz-source";
+const TZ_FILL_LAYER = "tz-boundaries-fill";
+const TZ_BORDER_LAYER = "tz-boundaries-border";
+const COUNTRY_SOURCE = "country-source";
+const COUNTRY_FILL_LAYER = "country-fill";
+const COUNTRY_BORDER_LAYER = "country-borders";
+const COUNTRY_HIGHLIGHT_LAYER = "country-highlight";
 const TZ_LINES_SOURCE = "tz-lines-source";
 const TZ_LINES_LAYER = "tz-lines";
+
+export type TzHoverInfo = {
+  tzColor: string;
+  utcOffset: string;
+  tzid: string;
+  point: { x: number; y: number };
+} | null;
+
+export type CountryClickInfo = {
+  name: string;
+  point: { x: number; y: number };
+  lngLat: { lng: number; lat: number };
+  tzid: string;
+  utcOffset: string;
+  tzColor: string;
+} | null;
+
+type Props = {
+  onTzHover?: (info: TzHoverInfo) => void;
+  onCountryClick?: (info: CountryClickInfo) => void;
+  highlightColor?: string | null;
+  onMapInteract?: () => void;
+};
+
+// Country IDs that cross the anti-meridian and need splitting
+const ANTIMERIDIAN_IDS = new Set([10, 242, 643]); // Antarctica, Fiji, Russia
+
+function splitAntimeridianFeature(
+  feature: GeoJSON.Feature
+): GeoJSON.Feature[] {
+  const geom = feature.geometry;
+  if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") {
+    return [feature];
+  }
+
+  const eastPolys: number[][][] = [];
+  const westPolys: number[][][] = [];
+
+  const splitRing = (ring: number[][]) => {
+    const east = ring.filter((c) => c[0] >= 0);
+    const west = ring.filter((c) => c[0] < 0);
+    if (east.length >= 3) eastPolys.push(east);
+    if (west.length >= 3) westPolys.push(west);
+  };
+
+  if (geom.type === "Polygon") {
+    for (const ring of geom.coordinates) splitRing(ring as number[][]);
+  } else {
+    for (const poly of geom.coordinates) {
+      for (const ring of poly) splitRing(ring as number[][]);
+    }
+  }
+
+  return [eastPolys, westPolys]
+    .filter((polys) => polys.length > 0)
+    .map((polys) => ({
+      ...feature,
+      geometry: {
+        type: "MultiPolygon" as const,
+        coordinates: polys.map((ring) => [ring]),
+      },
+    }));
+}
 
 function buildTimezoneLines(): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (let offset = -12; offset <= 12; offset++) {
     const lng = offset * 15;
     const coords: [number, number][] = [];
-    for (let lat = -60; lat <= 72; lat += 2) {
+    for (let lat = -85; lat <= 85; lat += 2) {
       coords.push([lng, lat]);
     }
     features.push({
@@ -39,71 +96,10 @@ function buildTimezoneLines(): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features };
 }
 
-// Clip a single ring to one side of the anti-meridian
-function clipRingToSide(
-  ring: number[][],
-  side: "east" | "west"
-): number[][] | null {
-  const filtered = ring.filter((coord) =>
-    side === "east" ? coord[0] >= 0 : coord[0] <= 0
-  );
-  return filtered.length >= 3 ? filtered : null;
-}
-
-// Split a polygon/multipolygon that crosses the anti-meridian into
-// separate east/west halves so MapLibre renders them correctly
-function splitAntimeridianFeature(
-  feature: GeoJSON.Feature
-): GeoJSON.Feature[] {
-  const geom = feature.geometry;
-  const results: number[][][][] = [[], []]; // [east polygons, west polygons]
-
-  const processPolygon = (rings: number[][][]) => {
-    for (const ring of rings) {
-      const east = clipRingToSide(ring, "east");
-      const west = clipRingToSide(ring, "west");
-      if (east) results[0].push(east);
-      if (west) results[1].push(west);
-    }
-  };
-
-  if (geom.type === "Polygon") {
-    processPolygon(geom.coordinates as number[][][]);
-  } else if (geom.type === "MultiPolygon") {
-    for (const polygon of geom.coordinates as number[][][][]) {
-      processPolygon(polygon);
-    }
-  }
-
-  return results
-    .filter((polys) => polys.length > 0)
-    .map((polys) => ({
-      ...feature,
-      geometry: {
-        type: "MultiPolygon" as const,
-        coordinates: polys.map((ring) => [ring]),
-      },
-    }));
-}
-
-function tagFeature(feature: GeoJSON.Feature, id: string) {
-  const name = (feature.properties?.name as string) ?? "";
-  let tzKey = countryTimezoneMap[id];
-  if (!tzKey && name) {
-    tzKey = nameFallbackTimezone[name];
-  }
-  feature.properties = {
-    ...feature.properties,
-    tz_color: (tzKey && timezoneColors[tzKey]) || "",
-  };
-}
-
-// Build the fill-opacity expression: highlighted timezone gets boosted opacity
 function buildOpacityExpr(
   hoveredColor: string | null
 ): maplibregl.ExpressionSpecification {
   if (!hoveredColor) {
-    // Default: 0.35 for colored countries, 0 for uncolored
     return [
       "case",
       ["!=", ["get", "tz_color"], ""],
@@ -112,7 +108,6 @@ function buildOpacityExpr(
     ] as unknown as maplibregl.ExpressionSpecification;
   }
 
-  // Hovered timezone gets bright, others dim slightly
   return [
     "case",
     ["==", ["get", "tz_color"], hoveredColor],
@@ -123,10 +118,29 @@ function buildOpacityExpr(
   ] as unknown as maplibregl.ExpressionSpecification;
 }
 
-export function CountryTimezoneLayer() {
+export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor, onMapInteract }: Props) {
   const { map, isLoaded } = useMap();
   const addedRef = useRef(false);
   const hoveredColorRef = useRef<string | null>(null);
+  const hoveredCountryIdRef = useRef<number | null>(null);
+  const externalColorRef = useRef<string | null>(null);
+  const onTzHoverRef = useRef(onTzHover);
+  const onCountryClickRef = useRef(onCountryClick);
+  const onMapInteractRef = useRef(onMapInteract);
+
+  onTzHoverRef.current = onTzHover;
+  onCountryClickRef.current = onCountryClick;
+  onMapInteractRef.current = onMapInteract;
+
+  const clearCountryHighlight = useCallback(() => {
+    if (hoveredCountryIdRef.current !== null && map) {
+      map.setFeatureState(
+        { source: COUNTRY_SOURCE, id: hoveredCountryIdRef.current },
+        { hover: false }
+      );
+      hoveredCountryIdRef.current = null;
+    }
+  }, [map]);
 
   useEffect(() => {
     if (!map || !isLoaded || addedRef.current) return;
@@ -135,53 +149,75 @@ export function CountryTimezoneLayer() {
       if (!map) return;
 
       try {
-        const res = await fetch("/world-110m.json");
-        const topo: Topology = await res.json();
-        const geojson = topojson.feature(
-          topo,
-          topo.objects.countries
+        const [tzRes, countryRes] = await Promise.all([
+          fetch("/timezones.json"),
+          fetch("/world-110m.json"),
+        ]);
+
+        const tzTopo: Topology = await tzRes.json();
+        const countryTopo: Topology = await countryRes.json();
+
+        // Convert timezone boundaries to GeoJSON and tag with tz_color + utcOffset
+        const tzObjKey = Object.keys(tzTopo.objects)[0];
+        const tzGeojson = topojson.feature(
+          tzTopo,
+          tzTopo.objects[tzObjKey]
         ) as GeoJSON.FeatureCollection;
 
-        // Process features: split anti-meridian crossers, tag all with tz_color
-        const processedFeatures: GeoJSON.Feature[] = [];
-
-        for (const feature of geojson.features) {
-          const id = String(feature.id ?? "");
-
-          // Skip Antarctica entirely
-          if (id === "010") continue;
-
-          if (ANTIMERIDIAN_IDS.has(id)) {
-            const parts = splitAntimeridianFeature(feature);
-            for (const part of parts) {
-              tagFeature(part, id);
-              processedFeatures.push(part);
-            }
-          } else {
-            tagFeature(feature, id);
-            processedFeatures.push(feature);
-          }
+        for (const feature of tzGeojson.features) {
+          const tzid = (feature.properties?.tzid as string) ?? "";
+          const utcKey = getUtcOffsetKey(tzid);
+          feature.properties = {
+            ...feature.properties,
+            tz_color: (utcKey && timezoneColors[utcKey]) || "",
+            utc_offset: utcKey,
+          };
         }
 
-        const processedGeojson: GeoJSON.FeatureCollection = {
-          type: "FeatureCollection",
-          features: processedFeatures,
-        };
+        // Country features with numeric IDs for feature-state
+        const rawCountryGeojson = topojson.feature(
+          countryTopo,
+          countryTopo.objects.countries as Parameters<typeof topojson.feature>[1]
+        ) as GeoJSON.FeatureCollection;
 
-        map.addSource(SOURCE_ID, {
-          type: "geojson",
-          data: processedGeojson,
-        });
+        // Split anti-meridian crossers, assign numeric IDs
+        const countryFeatures: GeoJSON.Feature[] = [];
+        let syntheticId = 100000;
+        for (const feature of rawCountryGeojson.features) {
+          const numId = Number(feature.id) || 0;
+          if (numId === 10) continue; // Skip Antarctica
+          if (ANTIMERIDIAN_IDS.has(numId)) {
+            const parts = splitAntimeridianFeature(feature);
+            for (const part of parts) {
+              part.id = syntheticId++;
+              part.properties = { ...feature.properties };
+              countryFeatures.push(part);
+            }
+          } else {
+            feature.id = numId;
+            countryFeatures.push(feature);
+          }
+        }
+        const countryGeojson: GeoJSON.FeatureCollection = {
+          type: "FeatureCollection",
+          features: countryFeatures,
+        };
 
         const firstSymbolLayer = map
           .getStyle()
           ?.layers?.find((l) => l.type === "symbol");
 
+        // 1. Timezone fill layer
+        map.addSource(TZ_SOURCE, {
+          type: "geojson",
+          data: tzGeojson,
+        });
+
         map.addLayer(
           {
-            id: LAYER_ID,
+            id: TZ_FILL_LAYER,
             type: "fill",
-            source: SOURCE_ID,
+            source: TZ_SOURCE,
             paint: {
               "fill-color": [
                 "case",
@@ -195,12 +231,45 @@ export function CountryTimezoneLayer() {
           firstSymbolLayer?.id
         );
 
-        // Country borders
+        // 2. Timezone boundary borders (subtle)
         map.addLayer(
           {
-            id: LAYER_ID + "-border",
+            id: TZ_BORDER_LAYER,
             type: "line",
-            source: SOURCE_ID,
+            source: TZ_SOURCE,
+            paint: {
+              "line-color": "rgba(180, 180, 200, 0.2)",
+              "line-width": 0.5,
+            },
+          },
+          firstSymbolLayer?.id
+        );
+
+        // 3. Country features (invisible fill for hover/click detection)
+        map.addSource(COUNTRY_SOURCE, {
+          type: "geojson",
+          data: countryGeojson,
+        });
+
+        map.addLayer(
+          {
+            id: COUNTRY_FILL_LAYER,
+            type: "fill",
+            source: COUNTRY_SOURCE,
+            paint: {
+              "fill-color": "rgba(0,0,0,0)",
+              "fill-opacity": 0,
+            },
+          },
+          firstSymbolLayer?.id
+        );
+
+        // 4. Country borders (base, thin)
+        map.addLayer(
+          {
+            id: COUNTRY_BORDER_LAYER,
+            type: "line",
+            source: COUNTRY_SOURCE,
             paint: {
               "line-color": "rgba(200, 200, 220, 0.25)",
               "line-width": 0.8,
@@ -209,7 +278,26 @@ export function CountryTimezoneLayer() {
           firstSymbolLayer?.id
         );
 
-        // Timezone boundary lines
+        // 5. Country highlight border (feature-state driven)
+        map.addLayer(
+          {
+            id: COUNTRY_HIGHLIGHT_LAYER,
+            type: "line",
+            source: COUNTRY_SOURCE,
+            paint: {
+              "line-color": "rgba(255, 255, 255, 0.7)",
+              "line-width": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                2,
+                0,
+              ] as unknown as maplibregl.ExpressionSpecification,
+            },
+          },
+          firstSymbolLayer?.id
+        );
+
+        // 6. Dashed meridian lines
         map.addSource(TZ_LINES_SOURCE, {
           type: "geojson",
           data: buildTimezoneLines(),
@@ -229,44 +317,106 @@ export function CountryTimezoneLayer() {
           firstSymbolLayer?.id
         );
 
-        // Hover: highlight all countries in the same timezone
-        const handleMouseMove = (
-          e: maplibregl.MapMouseEvent & {
-            features?: maplibregl.MapGeoJSONFeature[];
-          }
-        ) => {
-          const features = map.queryRenderedFeatures(e.point, {
-            layers: [LAYER_ID],
+        // --- Event handlers ---
+
+        const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+          // Signal that the user is interacting with the map
+          onMapInteractRef.current?.();
+
+          // Timezone hover
+          const tzFeatures = map.queryRenderedFeatures(e.point, {
+            layers: [TZ_FILL_LAYER],
           });
 
-          if (features.length > 0) {
-            const tzColor = features[0].properties?.tz_color as string;
+          if (tzFeatures.length > 0) {
+            const tzColor = tzFeatures[0].properties?.tz_color as string;
+            const utcOffset = tzFeatures[0].properties?.utc_offset as string;
+            const tzid = tzFeatures[0].properties?.tzid as string;
+
             if (tzColor && tzColor !== hoveredColorRef.current) {
               hoveredColorRef.current = tzColor;
               map.setPaintProperty(
-                LAYER_ID,
+                TZ_FILL_LAYER,
                 "fill-opacity",
                 buildOpacityExpr(tzColor)
               );
-              map.getCanvas().style.cursor = "pointer";
             }
+
+            if (tzColor) {
+              onTzHoverRef.current?.({
+                tzColor,
+                utcOffset: utcOffset || "",
+                tzid: tzid || "",
+                point: { x: e.point.x, y: e.point.y },
+              });
+            }
+          }
+
+          // Country hover (border highlight)
+          const countryFeatures = map.queryRenderedFeatures(e.point, {
+            layers: [COUNTRY_FILL_LAYER],
+          });
+
+          if (countryFeatures.length > 0) {
+            const featureId = countryFeatures[0].id as number;
+            if (featureId !== hoveredCountryIdRef.current) {
+              clearCountryHighlight();
+              hoveredCountryIdRef.current = featureId;
+              map.setFeatureState(
+                { source: COUNTRY_SOURCE, id: featureId },
+                { hover: true }
+              );
+            }
+            map.getCanvas().style.cursor = "pointer";
+          } else {
+            clearCountryHighlight();
           }
         };
 
         const handleMouseLeave = () => {
-          if (hoveredColorRef.current) {
-            hoveredColorRef.current = null;
-            map.setPaintProperty(
-              LAYER_ID,
-              "fill-opacity",
-              buildOpacityExpr(null)
-            );
-            map.getCanvas().style.cursor = "";
+          hoveredColorRef.current = null;
+          // Restore external highlight if set, otherwise clear
+          map.setPaintProperty(
+            TZ_FILL_LAYER,
+            "fill-opacity",
+            buildOpacityExpr(externalColorRef.current)
+          );
+          clearCountryHighlight();
+          map.getCanvas().style.cursor = "";
+          onTzHoverRef.current?.(null);
+        };
+
+        const handleClick = (e: maplibregl.MapMouseEvent) => {
+          const countryFeatures = map.queryRenderedFeatures(e.point, {
+            layers: [COUNTRY_FILL_LAYER],
+          });
+
+          if (countryFeatures.length > 0) {
+            const name = countryFeatures[0].properties?.name as string;
+            if (name) {
+              // Also query timezone info at click point
+              const tzFeatures = map.queryRenderedFeatures(e.point, {
+                layers: [TZ_FILL_LAYER],
+              });
+              const tzid = (tzFeatures[0]?.properties?.tzid as string) || "";
+              const utcOffset = (tzFeatures[0]?.properties?.utc_offset as string) || "";
+              const tzColor = (tzFeatures[0]?.properties?.tz_color as string) || "";
+
+              onCountryClickRef.current?.({
+                name,
+                point: { x: e.point.x, y: e.point.y },
+                lngLat: { lng: e.lngLat.lng, lat: e.lngLat.lat },
+                tzid,
+                utcOffset,
+                tzColor,
+              });
+            }
           }
         };
 
-        map.on("mousemove", LAYER_ID, handleMouseMove);
-        map.on("mouseleave", LAYER_ID, handleMouseLeave);
+        map.on("mousemove", handleMouseMove);
+        map.on("mouseleave", TZ_FILL_LAYER, handleMouseLeave);
+        map.on("click", handleClick);
 
         addedRef.current = true;
       } catch (err) {
@@ -280,16 +430,39 @@ export function CountryTimezoneLayer() {
       try {
         if (map.getLayer(TZ_LINES_LAYER)) map.removeLayer(TZ_LINES_LAYER);
         if (map.getSource(TZ_LINES_SOURCE)) map.removeSource(TZ_LINES_SOURCE);
-        if (map.getLayer(LAYER_ID + "-border"))
-          map.removeLayer(LAYER_ID + "-border");
-        if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID);
-        if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
+        if (map.getLayer(COUNTRY_HIGHLIGHT_LAYER))
+          map.removeLayer(COUNTRY_HIGHLIGHT_LAYER);
+        if (map.getLayer(COUNTRY_BORDER_LAYER))
+          map.removeLayer(COUNTRY_BORDER_LAYER);
+        if (map.getLayer(COUNTRY_FILL_LAYER))
+          map.removeLayer(COUNTRY_FILL_LAYER);
+        if (map.getSource(COUNTRY_SOURCE)) map.removeSource(COUNTRY_SOURCE);
+        if (map.getLayer(TZ_BORDER_LAYER)) map.removeLayer(TZ_BORDER_LAYER);
+        if (map.getLayer(TZ_FILL_LAYER)) map.removeLayer(TZ_FILL_LAYER);
+        if (map.getSource(TZ_SOURCE)) map.removeSource(TZ_SOURCE);
         addedRef.current = false;
       } catch {
         // ignore cleanup errors
       }
     };
-  }, [map, isLoaded]);
+  }, [map, isLoaded, clearCountryHighlight]);
+
+  // Apply external highlight color from label hover/click
+  useEffect(() => {
+    if (!map || !addedRef.current) return;
+    if (!map.getLayer(TZ_FILL_LAYER)) return;
+
+    externalColorRef.current = highlightColor ?? null;
+
+    // Only apply if not currently hovering on map
+    if (!hoveredColorRef.current) {
+      map.setPaintProperty(
+        TZ_FILL_LAYER,
+        "fill-opacity",
+        buildOpacityExpr(highlightColor ?? null)
+      );
+    }
+  }, [map, highlightColor]);
 
   return null;
 }

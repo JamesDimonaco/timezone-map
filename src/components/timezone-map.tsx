@@ -10,20 +10,34 @@ import {
   useMap,
 } from "@/components/ui/map";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   timezoneCities,
   timezoneColors,
   timezoneZoneLabels,
   formatTimeInTimezone,
   formatDateInTimezone,
+  countryFlag,
   type TimezoneCity,
 } from "@/lib/timezones";
 import { Clock, MapPin, Globe, Search, X, Eye, EyeOff } from "lucide-react";
-import { CountryTimezoneLayer } from "@/components/country-timezone-layer";
+import {
+  CountryTimezoneLayer,
+  type TzHoverInfo,
+  type CountryClickInfo,
+} from "@/components/country-timezone-layer";
 
 // Component that renders timezone labels pinned to bottom of screen,
 // positioned horizontally to match the map's longitude projection
-function TimezoneZoneLabels() {
+function TimezoneZoneLabels({
+  highlightColor,
+  onLabelHover,
+  onLabelClick,
+}: {
+  highlightColor: string | null;
+  onLabelHover?: (color: string | null) => void;
+  onLabelClick?: (color: string) => void;
+}) {
   const { map, isLoaded } = useMap();
   const containerRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<
@@ -66,13 +80,96 @@ function TimezoneZoneLabels() {
     };
   }, [map, isLoaded, updatePositions]);
 
+  // Calculate the midnight line position (where local time = 00:00)
+  const [midnightX, setMidnightX] = useState<number | null>(null);
+  const [midnightDates, setMidnightDates] = useState<{
+    left: string;
+    right: string;
+  }>({ left: "", right: "" });
+
+  const updateMidnight = useCallback(() => {
+    if (!map) return;
+    const now = new Date();
+    const utcH = now.getUTCHours();
+    const utcM = now.getUTCMinutes();
+    const utcS = now.getUTCSeconds();
+    // Midnight occurs where UTC offset = -(utcH + utcM/60 + utcS/3600)
+    const midnightOffset = -(utcH + utcM / 60 + utcS / 3600);
+    // Normalize longitude to -180..180
+    let midnightLng = midnightOffset * 15;
+    if (midnightLng < -180) midnightLng += 360;
+    if (midnightLng > 180) midnightLng -= 360;
+
+    const container = map.getContainer();
+    const width = container.offsetWidth;
+    const point = map.project([midnightLng, 0]);
+
+    // Only show if on-screen
+    if (point.x >= -60 && point.x <= width + 60) {
+      setMidnightX(point.x);
+    } else {
+      setMidnightX(null);
+    }
+
+    // West of midnight = current date, East of midnight = next date
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      });
+    setMidnightDates({ left: fmt(now), right: fmt(tomorrow) });
+  }, [map]);
+
+  useEffect(() => {
+    if (!map || !isLoaded) return;
+    updateMidnight();
+    const interval = setInterval(updateMidnight, 1000);
+    map.on("move", updateMidnight);
+    map.on("zoom", updateMidnight);
+    map.on("resize", updateMidnight);
+    return () => {
+      clearInterval(interval);
+      map.off("move", updateMidnight);
+      map.off("zoom", updateMidnight);
+      map.off("resize", updateMidnight);
+    };
+  }, [map, isLoaded, updateMidnight]);
+
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-0 left-0 right-0 z-10 h-16 pointer-events-none overflow-hidden"
+      className="absolute bottom-0 left-0 right-0 z-10 h-20 pointer-events-none overflow-hidden"
     >
-      {/* Subtle gradient backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-t from-background/70 to-transparent" />
+
+      {/* Midnight date line island */}
+      {midnightX !== null && (
+        <div
+          className="absolute bottom-0 z-20 flex flex-col items-center select-none"
+          style={{ left: midnightX, transform: "translateX(-50%)" }}
+        >
+          {/* Vertical midnight line */}
+          <div className="w-px h-10 bg-gradient-to-b from-transparent via-amber-400/50 to-amber-400/80" />
+          {/* Pulsing dot */}
+          <div className="relative -mt-px">
+            <div className="absolute -inset-1 rounded-full bg-amber-400/30 animate-ping" />
+            <div className="size-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]" />
+          </div>
+          {/* Date labels */}
+          <div className="flex items-center gap-0 mt-0.5">
+            <span className="text-[8px] font-mono text-amber-300/80 mr-2.5 whitespace-nowrap">
+              {midnightDates.left}
+            </span>
+            <span className="text-[7px] text-amber-400/60 font-bold">|</span>
+            <span className="text-[8px] font-mono text-amber-300/80 ml-2.5 whitespace-nowrap">
+              {midnightDates.right}
+            </span>
+          </div>
+        </div>
+      )}
 
       {positions.map((pos, i) => {
         if (!pos.visible) return null;
@@ -85,15 +182,29 @@ function TimezoneZoneLabels() {
             ? "UTC"
             : zone.utcOffset.replace("UTC", "");
 
+        const isHighlighted = highlightColor === color;
+
         return (
           <div
             key={pos.key}
-            className="absolute bottom-2 -translate-x-1/2 flex flex-col items-center select-none"
-            style={{ left: pos.x }}
+            className="absolute bottom-2 -translate-x-1/2 flex flex-col items-center select-none pointer-events-auto cursor-pointer transition-all duration-150"
+            style={{
+              left: pos.x,
+              transform: `translateX(-50%) ${isHighlighted ? "scale(1.25) translateY(-4px)" : ""}`,
+              zIndex: isHighlighted ? 20 : 1,
+            }}
+            onMouseEnter={() => onLabelHover?.(color)}
+            onMouseLeave={() => onLabelHover?.(null)}
+            onClick={() => onLabelClick?.(color)}
           >
             <div
-              className="rounded-md px-1.5 py-0.5 text-white font-mono font-bold text-[11px] leading-tight shadow-sm whitespace-nowrap"
-              style={{ backgroundColor: color }}
+              className="rounded-md px-1.5 py-0.5 text-white font-mono font-bold text-[11px] leading-tight shadow-sm whitespace-nowrap transition-all duration-150"
+              style={{
+                backgroundColor: color,
+                boxShadow: isHighlighted
+                  ? `0 0 12px ${color}88, 0 2px 8px rgba(0,0,0,0.3)`
+                  : undefined,
+              }}
             >
               {time.replace(/\s?(AM|PM)/i, "")}
               <span className="text-white/70 text-[8px] ml-0.5">
@@ -101,14 +212,131 @@ function TimezoneZoneLabels() {
               </span>
             </div>
             <span
-              className="text-[9px] font-mono font-semibold mt-0.5"
-              style={{ color }}
+              className="text-[9px] font-mono font-semibold mt-0.5 transition-all duration-150"
+              style={{
+                color,
+                opacity: isHighlighted ? 1 : 0.8,
+              }}
             >
               {offsetLabel}
             </span>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Floating tooltip for timezone hover
+function TzTooltip({ info }: { info: TzHoverInfo }) {
+  if (!info) return null;
+
+  const time = formatTimeInTimezone(
+    // Use a city timezone for the offset if possible, fall back to tzid
+    info.tzid || "UTC"
+  );
+  const date = formatDateInTimezone(info.tzid || "UTC");
+
+  return (
+    <div
+      className="fixed z-50 pointer-events-none"
+      style={{
+        left: info.point.x + 12,
+        top: info.point.y - 12,
+      }}
+    >
+      <div className="rounded-lg border bg-background/95 backdrop-blur-md shadow-lg px-3 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <div
+            className="size-2.5 rounded-full shrink-0"
+            style={{ backgroundColor: info.tzColor }}
+          />
+          <span className="font-semibold tabular-nums">{time}</span>
+          <span className="text-muted-foreground text-xs">{date}</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          {info.utcOffset}
+          {info.tzid && info.tzid !== "Etc/UTC" && (
+            <span className="ml-1.5">
+              {info.tzid.split("/").pop()?.replace(/_/g, " ")}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Country info popup on click
+function CountryPopup({
+  info,
+  onClose,
+}: {
+  info: CountryClickInfo;
+  onClose: () => void;
+}) {
+  if (!info) return null;
+
+  const flag = countryFlag(info.name);
+  const time = info.tzid ? formatTimeInTimezone(info.tzid) : "";
+  const date = info.tzid ? formatDateInTimezone(info.tzid) : "";
+  const regionName = info.tzid?.split("/").pop()?.replace(/_/g, " ") || "";
+
+  return (
+    <div
+      className="fixed z-50"
+      style={{
+        left: info.point.x,
+        top: info.point.y - 8,
+        transform: "translate(-50%, -100%)",
+      }}
+    >
+      <Card className="w-64 p-0 shadow-xl border bg-background/95 backdrop-blur-md overflow-hidden">
+        <div className="p-3 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {flag && <span className="text-lg">{flag}</span>}
+              <h3 className="font-semibold text-sm">{info.name}</h3>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-md p-0.5 hover:bg-muted transition-colors"
+            >
+              <X className="size-3.5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {info.tzid && (
+            <div className="rounded-md bg-muted/50 p-2.5">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-muted-foreground" />
+                <span className="text-lg font-bold tabular-nums">{time}</span>
+                {info.tzColor && (
+                  <div
+                    className="size-2.5 rounded-full ml-auto shrink-0"
+                    style={{ backgroundColor: info.tzColor }}
+                  />
+                )}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground flex items-center justify-between">
+                <span>{date}</span>
+                <span className="font-mono">{info.utcOffset}</span>
+              </div>
+              {regionName && (
+                <div className="mt-1 text-[11px] text-muted-foreground/70">
+                  {regionName}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <MapPin className="size-3" />
+            {Math.abs(info.lngLat.lat).toFixed(1)}&deg;{info.lngLat.lat >= 0 ? "N" : "S"},{" "}
+            {Math.abs(info.lngLat.lng).toFixed(1)}&deg;{info.lngLat.lng >= 0 ? "E" : "W"}
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -126,6 +354,14 @@ export function TimezoneMap() {
   const [userTimezone] = useState(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone
   );
+
+  // Hover/click state for map layers
+  const [tzHover, setTzHover] = useState<TzHoverInfo>(null);
+  const [countryClick, setCountryClick] = useState<CountryClickInfo>(null);
+
+  // Label interaction state
+  const [labelHoverColor, setLabelHoverColor] = useState<string | null>(null);
+  const [lockedColor, setLockedColor] = useState<string | null>(null);
 
   // Update clock every second
   useEffect(() => {
@@ -165,6 +401,31 @@ export function TimezoneMap() {
     setSearchQuery("");
   }, []);
 
+  const handleCountryClick = useCallback((info: CountryClickInfo) => {
+    setCountryClick(info);
+  }, []);
+
+  // When hovering a bottom label, temporarily highlight that timezone on the map
+  const handleLabelHover = useCallback((color: string | null) => {
+    setLabelHoverColor(color);
+  }, []);
+
+  // Clicking a bottom label toggles a locked highlight
+  const handleLabelClick = useCallback((color: string) => {
+    setLockedColor((prev) => (prev === color ? null : color));
+  }, []);
+
+  // When the user hovers on the map, clear any locked label highlight
+  const handleMapInteract = useCallback(() => {
+    setLockedColor(null);
+  }, []);
+
+  // Effective highlight: label hover takes priority, then locked color
+  const effectiveMapHighlight = labelHoverColor || lockedColor || null;
+  // For labels: show highlight from any source (label hover, locked, or map hover)
+  const effectiveLabelHighlight =
+    labelHoverColor || lockedColor || (tzHover?.tzColor ?? null);
+
   const userTime = formatTimeInTimezone(userTimezone);
   const userDate = formatDateInTimezone(userTimezone);
 
@@ -179,10 +440,19 @@ export function TimezoneMap() {
         />
 
         {/* Country timezone fill layer */}
-        <CountryTimezoneLayer />
+        <CountryTimezoneLayer
+          onTzHover={setTzHover}
+          onCountryClick={handleCountryClick}
+          highlightColor={effectiveMapHighlight}
+          onMapInteract={handleMapInteract}
+        />
 
         {/* Timezone labels pinned to bottom of screen */}
-        <TimezoneZoneLabels />
+        <TimezoneZoneLabels
+          highlightColor={effectiveLabelHighlight}
+          onLabelHover={handleLabelHover}
+          onLabelClick={handleLabelClick}
+        />
 
         {/* User location marker */}
         {userLocation && (
@@ -309,6 +579,12 @@ export function TimezoneMap() {
             );
           })}
       </Map>
+
+      {/* Timezone hover tooltip */}
+      <TzTooltip info={tzHover} />
+
+      {/* Country click popup */}
+      <CountryPopup info={countryClick} onClose={() => setCountryClick(null)} />
 
       {/* Top bar */}
       <div className="absolute top-4 left-4 right-4 z-20 flex items-start justify-between gap-3 pointer-events-none">
