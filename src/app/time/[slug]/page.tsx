@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   getAllCitySlugs,
@@ -6,14 +6,10 @@ import {
   parseComparisonSlug,
   generateComparisonSlugs,
   canonicalComparisonSlug,
-  cityToSlug,
   formatHourDifference,
+  parseUtcOffsetHours,
 } from "@/lib/slugs";
-import {
-  timezoneColors,
-  countryFlag,
-  getHourDifference,
-} from "@/lib/timezones";
+import { timezoneColors, countryFlag } from "@/lib/timezones";
 import { CityPage } from "./city-page";
 import { ComparisonPage } from "./comparison-page";
 
@@ -58,7 +54,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const comparison = parseComparisonSlug(slug);
   if (comparison) {
     const { cityA, cityB } = comparison;
-    const diff = getHourDifference(cityA.timezone, cityB.timezone);
+    const diff =
+      parseUtcOffsetHours(cityB.utcOffset) -
+      parseUtcOffsetHours(cityA.utcOffset);
     const diffText = formatHourDifference(diff);
     const canonical = canonicalComparisonSlug(cityA, cityB);
     const title = `Time Difference: ${cityA.name} to ${cityB.name}`;
@@ -116,7 +114,5 @@ export default async function TimePage({ params }: Props) {
     );
   }
 
-  // 404 — Next.js will handle this via notFound
-  const { notFound } = await import("next/navigation");
   notFound();
 }

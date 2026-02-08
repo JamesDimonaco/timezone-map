@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { type TimezoneCity, countryFlag } from "@/lib/timezones";
 import {
-  type TimezoneCity,
-  countryFlag,
-  getHourDifference,
-} from "@/lib/timezones";
-import { cityToSlug, formatHourDifference } from "@/lib/slugs";
+  cityToSlug,
+  formatHourDifference,
+  parseUtcOffsetHours,
+} from "@/lib/slugs";
 import { TimeComparisonDisplay } from "@/components/time-comparison-display";
+import { TimeDifferenceCard } from "@/components/time-difference-card";
 
 export function ComparisonPage({
   cityA,
@@ -20,13 +21,17 @@ export function ComparisonPage({
   colorB: string;
   slug: string;
 }) {
-  const diff = getHourDifference(cityA.timezone, cityB.timezone);
-  const diffText = formatHourDifference(diff);
-  const aheadBehind =
-    diff > 0
-      ? `${cityB.name} is ${diffText} ahead of ${cityA.name}`
-      : diff < 0
-        ? `${cityB.name} is ${formatHourDifference(Math.abs(diff))} behind ${cityA.name}`
+  // Static diff from utcOffset strings — deterministic, DST-independent.
+  // Used only for structured data; live diff is rendered by the client component.
+  const staticDiff =
+    parseUtcOffsetHours(cityB.utcOffset) -
+    parseUtcOffsetHours(cityA.utcOffset);
+  const staticDiffText = formatHourDifference(staticDiff);
+  const staticAheadBehind =
+    staticDiff > 0
+      ? `${cityB.name} is ${staticDiffText} ahead of ${cityA.name}`
+      : staticDiff < 0
+        ? `${cityB.name} is ${formatHourDifference(Math.abs(staticDiff))} behind ${cityA.name}`
         : `${cityA.name} and ${cityB.name} are in the same timezone`;
 
   const faqJsonLd = {
@@ -38,7 +43,7 @@ export function ComparisonPage({
         name: `What is the time difference between ${cityA.name} and ${cityB.name}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `The time difference between ${cityA.name} (${cityA.utcOffset}) and ${cityB.name} (${cityB.utcOffset}) is ${diffText}. ${aheadBehind}.`,
+          text: `The time difference between ${cityA.name} (${cityA.utcOffset}) and ${cityB.name} (${cityB.utcOffset}) is ${staticDiffText}. ${staticAheadBehind}.`,
         },
       },
     ],
@@ -131,14 +136,13 @@ export function ComparisonPage({
           />
         </div>
 
-        {/* Difference card */}
-        <div className="rounded-lg border bg-card p-6 text-center mb-10">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-            Time Difference
-          </div>
-          <div className="text-2xl font-bold mb-1">{diffText}</div>
-          <div className="text-sm text-muted-foreground">{aheadBehind}</div>
-        </div>
+        {/* Live difference card (client component — DST-aware) */}
+        <TimeDifferenceCard
+          timezoneA={cityA.timezone}
+          timezoneB={cityB.timezone}
+          cityNameA={cityA.name}
+          cityNameB={cityB.name}
+        />
 
         {/* Compare on map CTA */}
         <div className="flex justify-center mb-10">

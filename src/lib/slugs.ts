@@ -121,6 +121,40 @@ export function generateComparisonSlugs(): string[] {
 }
 
 /**
+ * Generate only canonical (alphabetically ordered) comparison slugs.
+ * ~435 unique pairs (used for sitemap).
+ */
+export function generateCanonicalComparisonSlugs(): string[] {
+  const hubCities = HUB_CITY_NAMES.map((name) => {
+    const city = timezoneCities.find((c) => c.name === name);
+    if (!city) throw new Error(`Hub city not found: ${name}`);
+    return city;
+  });
+
+  const slugs = new Set<string>();
+  for (let i = 0; i < hubCities.length; i++) {
+    for (let j = i + 1; j < hubCities.length; j++) {
+      slugs.add(canonicalComparisonSlug(hubCities[i], hubCities[j]));
+    }
+  }
+  return Array.from(slugs);
+}
+
+/**
+ * Parse a static utcOffset string like "UTC+5:30" into a number (5.5).
+ * Deterministic — does not depend on current time or DST.
+ */
+export function parseUtcOffsetHours(utcOffset: string): number {
+  if (utcOffset === "UTC+0") return 0;
+  const match = utcOffset.match(/^UTC([+-])(\d+)(?::(\d+))?$/);
+  if (!match) return 0;
+  const sign = match[1] === "+" ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const minutes = match[3] ? parseInt(match[3], 10) : 0;
+  return sign * (hours + minutes / 60);
+}
+
+/**
  * Format an hour difference as human-readable text.
  * 5 → "5 hours", 5.5 → "5 hours 30 minutes", 0 → "0 hours"
  */

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import {
   type TimezoneCity,
-  timezoneColors,
   countryFlag,
   getRelatedCities,
+  getContrastTextColor,
 } from "@/lib/timezones";
 import { cityToSlug } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
@@ -129,7 +129,7 @@ export function CityPage({
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-colors"
             style={{
               backgroundColor: color,
-              color: "#000",
+              color: getContrastTextColor(color),
             }}
           >
             <svg

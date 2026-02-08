@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
-import { getAllCitySlugs, generateComparisonSlugs } from "@/lib/slugs";
+import { getAllCitySlugs, generateCanonicalComparisonSlugs } from "@/lib/slugs";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://timezones.live";
 
   const citySlugs = getAllCitySlugs();
-  const comparisonSlugs = generateComparisonSlugs();
+  const comparisonSlugs = generateCanonicalComparisonSlugs();
 
   return [
     {
