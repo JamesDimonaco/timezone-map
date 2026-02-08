@@ -653,7 +653,7 @@ export function TimezoneMap() {
       {/* Compare panel */}
       {compareOpen && (
         <div
-          className="absolute top-14 sm:top-20 left-0 sm:left-4 right-0 sm:right-auto z-20 px-2 sm:px-0"
+          className="absolute top-14 sm:top-20 right-0 sm:right-4 left-0 sm:left-auto z-20 px-2 sm:px-0"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >

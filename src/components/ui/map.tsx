@@ -218,7 +218,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     const map = new MapLibreGL.Map({
       container: containerRef.current,
       style: initialStyle,
-      renderWorldCopies: false,
+      renderWorldCopies: true,
       attributionControl: {
         compact: true,
       },
