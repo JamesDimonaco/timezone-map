@@ -79,6 +79,62 @@ function splitAntimeridianFeature(
     }));
 }
 
+function buildAntarcticaSectors(): GeoJSON.Feature[] {
+  const features: GeoJSON.Feature[] = [];
+  const southLat = -90;
+  const northLat = -60;
+  const steps = 20; // points along each arc for smooth curves
+
+  for (let offset = -12; offset < 12; offset++) {
+    const westLng = offset * 15;
+    const eastLng = (offset + 1) * 15;
+
+    // Build polygon: west edge (N→S), bottom arc (W→E), east edge (S→N), top arc (E→W)
+    const coords: [number, number][] = [];
+
+    // West meridian edge going south
+    for (let i = 0; i <= steps; i++) {
+      const lat = northLat + (southLat - northLat) * (i / steps);
+      coords.push([westLng, lat]);
+    }
+    // Bottom arc going east (at south pole, longitude doesn't matter much but closes the shape)
+    coords.push([eastLng, southLat]);
+    // East meridian edge going north
+    for (let i = steps; i >= 0; i--) {
+      const lat = northLat + (southLat - northLat) * (i / steps);
+      coords.push([eastLng, lat]);
+    }
+    // Close the ring
+    coords.push([westLng, northLat]);
+
+    // Map center longitude to UTC offset key
+    const centerLng = westLng + 7.5;
+    let utcHours = Math.round(centerLng / 15);
+    if (utcHours === -12) utcHours = -12; // keep -12
+    const utcKey = `UTC${utcHours >= 0 ? "+" : ""}${utcHours}`;
+    const color = timezoneColors[utcKey] || "";
+
+    // Use Etc/GMT zone for the tzid (signs are inverted)
+    const etcOffset = -utcHours;
+    const tzid = utcHours === 0 ? "Etc/GMT" : `Etc/GMT${etcOffset > 0 ? "+" : ""}${etcOffset}`;
+
+    features.push({
+      type: "Feature",
+      properties: {
+        tzid,
+        tz_color: color,
+        utc_offset: utcKey,
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [coords],
+      },
+    });
+  }
+
+  return features;
+}
+
 function buildTimezoneLines(): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (let offset = -12; offset <= 12; offset++) {
@@ -175,6 +231,9 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
             utc_offset: utcKey,
           };
         }
+
+        // Add Antarctica timezone sectors (24 pie slices from South Pole)
+        tzGeojson.features.push(...buildAntarcticaSectors());
 
         // Country features with numeric IDs for feature-state
         const rawCountryGeojson = topojson.feature(
