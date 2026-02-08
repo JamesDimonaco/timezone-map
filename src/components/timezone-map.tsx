@@ -316,7 +316,7 @@ export function TimezoneMap() {
         <div className="pointer-events-auto rounded-xl border bg-background/90 backdrop-blur-md shadow-lg p-3">
           <div className="flex items-center gap-2">
             <Globe className="size-5 text-primary" />
-            <h1 className="text-base font-bold">Time Map</h1>
+            <h2 className="text-base font-bold">Time Map</h2>
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 text-sm">
             <Clock className="size-3.5 text-muted-foreground" />
