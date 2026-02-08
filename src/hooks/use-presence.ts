@@ -11,12 +11,14 @@ export function usePresence(
 ) {
   const heartbeat = useMutation(api.presence.heartbeat);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionIdRef = useRef<string>("");
 
   useEffect(() => {
     if (!userLocation) return;
 
     const sessionId = getOrCreateSessionId();
     if (!sessionId) return;
+    sessionIdRef.current = sessionId;
 
     const { fuzzedLat, fuzzedLng } = fuzzCoordinates(
       userLocation.lat,
@@ -27,16 +29,19 @@ export function usePresence(
       heartbeat({ sessionId, fuzzedLat, fuzzedLng, timezone: userTimezone });
     };
 
-    // Send initial heartbeat
     sendHeartbeat();
-
-    // Send heartbeat every 30s
     intervalRef.current = setInterval(sendHeartbeat, 30_000);
 
+    // Attempt cleanup on tab close / navigate away
+    const handleUnload = () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      window.removeEventListener("beforeunload", handleUnload);
     };
   }, [userLocation, userTimezone, heartbeat]);
 }

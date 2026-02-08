@@ -128,9 +128,11 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
   const onCountryClickRef = useRef(onCountryClick);
   const onMapInteractRef = useRef(onMapInteract);
 
-  onTzHoverRef.current = onTzHover;
-  onCountryClickRef.current = onCountryClick;
-  onMapInteractRef.current = onMapInteract;
+  useEffect(() => {
+    onTzHoverRef.current = onTzHover;
+    onCountryClickRef.current = onCountryClick;
+    onMapInteractRef.current = onMapInteract;
+  });
 
   const clearCountryHighlight = useCallback(() => {
     if (hoveredCountryIdRef.current !== null && map) {
