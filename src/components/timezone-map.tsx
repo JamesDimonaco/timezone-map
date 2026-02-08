@@ -726,7 +726,7 @@ export function TimezoneMap() {
         {showCities &&
           timezoneCities.map((city) => {
             const color = timezoneColors[city.utcOffset] || "#6366f1";
-            const isSelected = popupInfo?.city?.name === city.name;
+            const isSelected = popupInfo?.city?.name === city.name && popupInfo?.city?.country === city.country;
 
             return (
               <MapMarker
@@ -835,7 +835,7 @@ export function TimezoneMap() {
           <button
             onClick={() => {
               setShowCities(!showCities);
-              if (!showCities === false) setPopupInfo(null);
+              if (showCities) setPopupInfo(null);
             }}
             className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors"
             title={showCities ? "Hide cities" : "Show cities"}
