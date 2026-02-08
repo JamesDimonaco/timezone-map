@@ -371,3 +371,36 @@ export function countryFlag(country: string): string {
     ...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)
   );
 }
+
+/**
+ * Get the signed hour difference between two IANA timezones.
+ * Positive means tzB is ahead of tzA.
+ */
+export function getHourDifference(tzA: string, tzB: string): number {
+  const now = new Date();
+  const getOffsetMinutes = (tz: string) => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "shortOffset",
+    });
+    const parts = formatter.formatToParts(now);
+    const tzPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+    if (tzPart === "GMT") return 0;
+    const match = tzPart.match(/GMT([+-])(\d+)(?::(\d+))?/);
+    if (!match) return 0;
+    const sign = match[1] === "+" ? 1 : -1;
+    const hours = parseInt(match[2], 10);
+    const minutes = match[3] ? parseInt(match[3], 10) : 0;
+    return sign * (hours * 60 + minutes);
+  };
+  return (getOffsetMinutes(tzB) - getOffsetMinutes(tzA)) / 60;
+}
+
+/**
+ * Get cities that share the same UTC offset as the given city.
+ */
+export function getRelatedCities(city: TimezoneCity): TimezoneCity[] {
+  return timezoneCities.filter(
+    (c) => c.utcOffset === city.utcOffset && c.name !== city.name
+  );
+}
