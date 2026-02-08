@@ -5,6 +5,7 @@ import { useMap } from "@/components/ui/map";
 
 const NIGHT_SOURCE = "night-source";
 const NIGHT_LAYER = "night-overlay";
+const TZ_LINES_LAYER = "tz-lines"; // last layer added by CountryTimezoneLayer
 
 // Solar declination angle in radians for a given date
 function solarDeclination(date: Date): number {
@@ -13,14 +14,12 @@ function solarDeclination(date: Date): number {
       (date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) /
         86400000
     );
-  // Approximate declination
   return -23.44 * Math.cos((2 * Math.PI * (dayOfYear + 10)) / 365.25) * (Math.PI / 180);
 }
 
 // Hour angle of the sun at a given UTC time
 function solarHourAngle(date: Date): number {
   const hours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
-  // Sun is at longitude = (12 - hours) * 15
   return (12 - hours) * 15;
 }
 
@@ -28,11 +27,6 @@ function solarHourAngle(date: Date): number {
 function buildNightPolygon(date: Date): GeoJSON.Feature {
   const decl = solarDeclination(date);
   const ha = solarHourAngle(date);
-
-  // Calculate terminator line: for each longitude, find the latitude where sun is at horizon
-  // cos(lat) * cos(decl) * cos(lng - ha) + sin(lat) * sin(decl) = 0
-  // => tan(lat) = -cos(lng - ha) * cos(decl) / sin(decl)
-  // => lat = atan(-cos(lng - ha) / tan(decl))
 
   const terminatorPoints: [number, number][] = [];
   const step = 2;
@@ -44,31 +38,20 @@ function buildNightPolygon(date: Date): GeoJSON.Feature {
     terminatorPoints.push([lng, lat]);
   }
 
-  // Determine which side is night: check if the subsolar point is north or south
-  // If declination > 0, sun is in northern hemisphere
-  // The night polygon should be on the opposite side of the terminator from the sun
+  // If declination > 0 sun is north → night is south; else night is north
   const nightOnSouth = decl > 0;
-
-  // Build polygon: terminator + cap at the pole on the night side
   const nightCoords: [number, number][] = [];
 
   if (nightOnSouth) {
-    // Night is south of the terminator
-    // Go along terminator from west to east, then close along the south pole
     nightCoords.push([-180, -90]);
-    for (let i = 0; i < terminatorPoints.length; i++) {
-      nightCoords.push(terminatorPoints[i]);
-    }
+    for (const pt of terminatorPoints) nightCoords.push(pt);
     nightCoords.push([180, -90]);
-    nightCoords.push([-180, -90]); // close
+    nightCoords.push([-180, -90]);
   } else {
-    // Night is north of the terminator
     nightCoords.push([-180, 90]);
-    for (let i = 0; i < terminatorPoints.length; i++) {
-      nightCoords.push(terminatorPoints[i]);
-    }
+    for (const pt of terminatorPoints) nightCoords.push(pt);
     nightCoords.push([180, 90]);
-    nightCoords.push([-180, 90]); // close
+    nightCoords.push([-180, 90]);
   }
 
   return {
@@ -98,37 +81,50 @@ export function DayNightLayer() {
   useEffect(() => {
     if (!map || !isLoaded || addedRef.current) return;
 
-    // Add night overlay source + layer
-    map.addSource(NIGHT_SOURCE, {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: [buildNightPolygon(new Date())],
-      },
-    });
+    // CountryTimezoneLayer loads data async, so its layers may not exist yet.
+    // Poll until tz-lines layer is ready, then insert our night overlay above it.
+    function tryAdd() {
+      if (!map || addedRef.current) return;
 
-    // Find the first symbol layer to insert below labels
-    const firstSymbolLayer = map
-      .getStyle()
-      ?.layers?.find((l) => l.type === "symbol");
+      // Wait for the tz layers to be ready
+      if (!map.getLayer(TZ_LINES_LAYER)) {
+        setTimeout(tryAdd, 200);
+        return;
+      }
 
-    map.addLayer(
-      {
-        id: NIGHT_LAYER,
-        type: "fill",
-        source: NIGHT_SOURCE,
-        paint: {
-          "fill-color": "#000000",
-          "fill-opacity": 0.18,
+      map.addSource(NIGHT_SOURCE, {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [buildNightPolygon(new Date())],
         },
-      },
-      firstSymbolLayer?.id
-    );
+      });
+
+      // Find the first symbol layer to insert below map labels but above all tz layers
+      const firstSymbolLayer = map
+        .getStyle()
+        ?.layers?.find((l) => l.type === "symbol");
+
+      map.addLayer(
+        {
+          id: NIGHT_LAYER,
+          type: "fill",
+          source: NIGHT_SOURCE,
+          paint: {
+            "fill-color": "#000000",
+            "fill-opacity": 0.25,
+          },
+        },
+        firstSymbolLayer?.id
+      );
+
+      addedRef.current = true;
+    }
+
+    tryAdd();
 
     // Update every 60 seconds
     const interval = setInterval(updateNight, 60000);
-
-    addedRef.current = true;
 
     return () => {
       clearInterval(interval);

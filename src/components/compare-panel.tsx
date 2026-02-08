@@ -37,29 +37,39 @@ function TimelineBar({ timezone, color }: { timezone: string; color: string }) {
   const currentHour = getHourInTimezone(timezone);
 
   return (
-    <div className="flex gap-px h-5 rounded overflow-hidden">
-      {Array.from({ length: 24 }, (_, h) => {
-        const isWork = h >= 9 && h < 17;
-        const isCurrent = h === currentHour;
-        return (
-          <div
-            key={h}
-            className="flex-1 relative"
-            title={`${h.toString().padStart(2, "0")}:00`}
-            style={{
-              backgroundColor: isCurrent
-                ? color
-                : isWork
-                  ? `${color}40`
-                  : "rgba(100,100,100,0.15)",
-            }}
-          >
-            {isCurrent && (
-              <div className="absolute inset-0 ring-1 ring-white/50 rounded-sm" />
-            )}
-          </div>
-        );
-      })}
+    <div className="space-y-0.5">
+      <div className="flex gap-px h-5 rounded overflow-hidden relative">
+        {Array.from({ length: 24 }, (_, h) => {
+          const isWork = h >= 9 && h < 17;
+          const isCurrent = h === currentHour;
+          return (
+            <div
+              key={h}
+              className="flex-1 relative"
+              title={`${h.toString().padStart(2, "0")}:00`}
+              style={{
+                backgroundColor: isCurrent
+                  ? color
+                  : isWork
+                    ? `${color}40`
+                    : "rgba(100,100,100,0.15)",
+              }}
+            >
+              {isCurrent && (
+                <div className="absolute inset-0 ring-2 ring-white/70 rounded-sm z-10" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Hour markers */}
+      <div className="flex justify-between text-[8px] text-muted-foreground/50 font-mono px-px">
+        <span>0</span>
+        <span>6</span>
+        <span>12</span>
+        <span>18</span>
+        <span>24</span>
+      </div>
     </div>
   );
 }
@@ -175,9 +185,9 @@ export function ComparePanel({
   const overlap = getWorkingHoursOverlap();
 
   return (
-    <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg overflow-hidden max-h-[70vh] overflow-y-auto">
+    <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg flex flex-col max-h-[70vh]">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b shrink-0">
         <div className="flex items-center gap-2">
           <Clock className="size-4 text-primary" />
           <h3 className="font-semibold text-sm">Compare Times</h3>
@@ -190,29 +200,24 @@ export function ComparePanel({
         </button>
       </div>
 
-      {/* City list */}
-      <div className="p-3 space-y-3">
-        {compareCities.map((city, i) => {
-          const color = timezoneColors[city.utcOffset] || "#6366f1";
-          const flag = countryFlag(city.country);
-          const time = formatTimeInTimezone(city.timezone);
-          const date = formatDateInTimezone(city.timezone);
+      {/* Scrollable city list */}
+      <div className="overflow-y-auto flex-1 min-h-0">
+        <div className="p-3 space-y-3">
+          {compareCities.map((city, i) => {
+            const color = timezoneColors[city.utcOffset] || "#6366f1";
+            const flag = countryFlag(city.country);
+            const time = formatTimeInTimezone(city.timezone);
+            const date = formatDateInTimezone(city.timezone);
 
-          return (
-            <div key={`${city.name}-${i}`} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  {flag && <span className="text-sm">{flag}</span>}
-                  <span className="font-medium text-sm truncate">
-                    {city.name}
-                  </span>
-                  <div
-                    className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-bold tabular-nums text-sm">{time}</span>
+            return (
+              <div key={`${city.name}-${i}`} className="space-y-1.5 rounded-lg bg-muted/30 p-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {flag && <span className="text-sm">{flag}</span>}
+                    <span className="font-medium text-sm truncate">
+                      {city.name}
+                    </span>
+                  </div>
                   <button
                     onClick={() => onRemove(i)}
                     className="rounded p-0.5 hover:bg-muted transition-colors"
@@ -220,47 +225,59 @@ export function ComparePanel({
                     <X className="size-3 text-muted-foreground" />
                   </button>
                 </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-lg font-bold tabular-nums"
+                      style={{ color }}
+                    >
+                      {time}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-muted-foreground">{date}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground/70">{city.utcOffset}</div>
+                  </div>
+                </div>
+                <TimelineBar timezone={city.timezone} color={color} />
               </div>
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>{date}</span>
-                <span className="font-mono">{city.utcOffset}</span>
-              </div>
-              <TimelineBar timezone={city.timezone} color={color} />
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {/* Working hours overlap indicator */}
-        {compareCities.length >= 2 && overlap !== null && (
-          <div className="rounded-md bg-muted/50 p-2 text-center">
-            <span className="text-xs text-muted-foreground">
-              Working hours overlap:{" "}
-              <span className="font-semibold text-foreground">
-                {overlap}h
+          {/* Working hours overlap indicator */}
+          {compareCities.length >= 2 && overlap !== null && (
+            <div className="rounded-md bg-muted/50 p-2 text-center">
+              <span className="text-xs text-muted-foreground">
+                Working hours overlap:{" "}
+                <span className="font-semibold text-foreground">
+                  {overlap}h
+                </span>
               </span>
-            </span>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Add city */}
-        {compareCities.length < 5 && (
+      {/* Add city — outside scroll so dropdown isn't clipped */}
+      {compareCities.length < 5 && (
+        <div className="relative px-3 pb-2 pt-1 shrink-0">
           <CitySearchInline onSelect={onAdd} />
-        )}
+        </div>
+      )}
 
-        {/* Timeline legend */}
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1">
-          <div className="flex items-center gap-1">
-            <div className="size-2.5 rounded-sm bg-muted-foreground/15" />
-            <span>Off hours</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="size-2.5 rounded-sm opacity-40 bg-primary" />
-            <span>9am-5pm</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="size-2.5 rounded-sm bg-primary ring-1 ring-white/50" />
-            <span>Now</span>
-          </div>
+      {/* Timeline legend */}
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground px-3 pb-2.5 shrink-0">
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-muted-foreground/15" />
+          <span>Off hours</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm opacity-40 bg-primary" />
+          <span>9am-5pm</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-sm bg-primary ring-1 ring-white/50" />
+          <span>Now</span>
         </div>
       </div>
     </div>

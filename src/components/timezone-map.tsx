@@ -284,19 +284,8 @@ function CountryPopup({
   const date = info.tzid ? formatDateInTimezone(info.tzid) : "";
   const regionName = info.tzid?.split("/").pop()?.replace(/_/g, " ") || "";
 
-  // Constrain popup position to viewport
-  const left = Math.max(140, Math.min(info.point.x, window.innerWidth - 140));
-  const top = Math.max(280, info.point.y - 8);
-
   return (
-    <div
-      className="fixed z-50"
-      style={{
-        left,
-        top,
-        transform: "translate(-50%, -100%)",
-      }}
-    >
+    <div className="fixed bottom-24 right-2 sm:right-4 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
       <Card className="w-64 p-0 shadow-xl border bg-background/95 backdrop-blur-md overflow-hidden">
         <div className="p-3 space-y-2.5">
           <div className="flex items-center justify-between">
@@ -663,7 +652,11 @@ export function TimezoneMap() {
 
       {/* Compare panel */}
       {compareOpen && (
-        <div className="absolute top-14 sm:top-20 left-0 sm:left-4 right-0 sm:right-auto z-20 px-2 sm:px-0">
+        <div
+          className="absolute top-14 sm:top-20 left-0 sm:left-4 right-0 sm:right-auto z-20 px-2 sm:px-0"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <ComparePanel
             compareCities={compareCities}
             onAdd={handleCompareAdd}
