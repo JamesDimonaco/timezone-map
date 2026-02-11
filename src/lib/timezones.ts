@@ -7,6 +7,18 @@ export type TimezoneCity = {
   utcOffset: string; // Display label like "UTC+5:30"
 };
 
+export type CompareSlot = {
+  city: TimezoneCity;
+  label?: string; // Person's name, e.g. "James"
+};
+
+export function formatHourAs12h(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  const period = h >= 12 ? "PM" : "AM";
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${display}:00 ${period}`;
+}
+
 // Representative cities for each major UTC offset
 export const timezoneCities: TimezoneCity[] = [
   // UTC-12

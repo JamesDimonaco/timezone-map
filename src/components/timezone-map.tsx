@@ -20,6 +20,7 @@ import {
   countryFlag,
   getUtcOffsetKey,
   type TimezoneCity,
+  type CompareSlot,
 } from "@/lib/timezones";
 import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows, ExternalLink, GripHorizontal } from "lucide-react";
 import {
@@ -483,7 +484,7 @@ export function TimezoneMap() {
 
   // Compare panel state
   const [compareOpen, setCompareOpen] = useState(false);
-  const [compareCities, setCompareCities] = useState<TimezoneCity[]>([]);
+  const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([]);
 
   // Presence heartbeat
   usePresence(userLocation, userTimezone);
@@ -509,35 +510,44 @@ export function TimezoneMap() {
     const params = new URLSearchParams(window.location.search);
     const compareParam = params.get("compare");
     if (compareParam) {
-      const names = compareParam.split(",").map((n) => n.trim());
-      const matched: TimezoneCity[] = [];
-      for (const name of names) {
+      const entries = compareParam.split(",").map((e) => e.trim());
+      const matched: CompareSlot[] = [];
+      for (const entry of entries) {
+        const colonIdx = entry.indexOf(":");
+        let label: string | undefined;
+        let cityName: string;
+        if (colonIdx > 0) {
+          label = entry.substring(0, colonIdx).trim() || undefined;
+          cityName = entry.substring(colonIdx + 1).trim();
+        } else {
+          cityName = entry;
+        }
         const city = timezoneCities.find(
-          (c) => c.name.toLowerCase() === name.toLowerCase()
+          (c) => c.name.toLowerCase() === cityName.toLowerCase()
         );
-        if (city && matched.length < 5) matched.push(city);
+        if (city && matched.length < 5) matched.push({ city, label });
       }
       if (matched.length > 0) {
-        setCompareCities(matched);
+        setCompareSlots(matched);
         setCompareOpen(true);
       }
     }
   }, []);
 
-  // Update URL when compare cities change
+  // Update URL when compare slots change
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (compareCities.length > 0) {
-      url.searchParams.set(
-        "compare",
-        compareCities.map((c) => c.name).join(",")
-      );
+    if (compareSlots.length > 0) {
+      const param = compareSlots
+        .map((s) => (s.label ? `${s.label}:${s.city.name}` : s.city.name))
+        .join(",");
+      url.searchParams.set("compare", param);
     } else {
       url.searchParams.delete("compare");
     }
     window.history.replaceState({}, "", url.toString());
-  }, [compareCities]);
+  }, [compareSlots]);
 
   // Update clock every second
   useEffect(() => {
@@ -588,15 +598,21 @@ export function TimezoneMap() {
   }, []);
 
   const handleCompareAdd = useCallback((city: TimezoneCity) => {
-    setCompareCities((prev) => {
+    setCompareSlots((prev) => {
       if (prev.length >= 5) return prev;
-      if (prev.some((c) => c.name === city.name && c.country === city.country)) return prev;
-      return [...prev, city];
+      if (prev.some((s) => s.city.name === city.name && s.city.country === city.country)) return prev;
+      return [...prev, { city }];
     });
   }, []);
 
   const handleCompareRemove = useCallback((index: number) => {
-    setCompareCities((prev) => prev.filter((_, i) => i !== index));
+    setCompareSlots((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleLabelChange = useCallback((index: number, label: string) => {
+    setCompareSlots((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, label: label.trim() || undefined } : s))
+    );
   }, []);
 
   const handleCountryClick = useCallback((info: CountryClickInfo) => {
@@ -782,9 +798,10 @@ export function TimezoneMap() {
           onClick={(e) => e.stopPropagation()}
         >
           <ComparePanel
-            compareCities={compareCities}
+            compareSlots={compareSlots}
             onAdd={handleCompareAdd}
             onRemove={handleCompareRemove}
+            onLabelChange={handleLabelChange}
             onClose={() => setCompareOpen(false)}
           />
         </div>
