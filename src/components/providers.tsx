@@ -2,6 +2,7 @@
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { useMemo, type ReactNode } from "react";
+import { PostHogProvider } from "@/components/posthog-provider";
 
 export function Providers({ children }: { children: ReactNode }) {
   const convex = useMemo(() => {
@@ -10,5 +11,9 @@ export function Providers({ children }: { children: ReactNode }) {
     return new ConvexReactClient(url);
   }, []);
 
-  return <ConvexProvider client={convex}>{children}</ConvexProvider>;
+  return (
+    <PostHogProvider>
+      <ConvexProvider client={convex}>{children}</ConvexProvider>
+    </PostHogProvider>
+  );
 }

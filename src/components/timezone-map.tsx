@@ -36,6 +36,7 @@ import { ComparePanel } from "@/components/compare-panel";
 import { usePresence } from "@/hooks/use-presence";
 import { LiveUsersLayer } from "@/components/live-users-layer";
 import { ActiveUsersBadge } from "@/components/active-users-badge";
+import { usePostHog } from "posthog-js/react";
 
 // Component that renders timezone labels pinned to bottom of screen,
 // positioned horizontally to match the map's longitude projection
@@ -459,6 +460,7 @@ function UnifiedPopup({
 }
 
 export function TimezoneMap() {
+  const posthog = usePostHog();
   const [, setNow] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -579,6 +581,13 @@ export function TimezoneMap() {
     const utcKey = getUtcOffsetKey(city.timezone);
     const color = timezoneColors[utcKey] || timezoneColors[city.utcOffset] || "#6366f1";
     cityClickTsRef.current = Date.now();
+    posthog?.capture("city_selected", {
+      city_name: city.name,
+      country: city.country,
+      timezone: city.timezone,
+      utc_offset: city.utcOffset,
+      source: "search",
+    });
     setPopupInfo({
       countryName: city.country,
       lngLat: { lng: city.lng, lat: city.lat },
@@ -589,15 +598,21 @@ export function TimezoneMap() {
     });
     setSearchOpen(false);
     setSearchQuery("");
-  }, []);
+  }, [posthog]);
 
   const handleCompareAdd = useCallback((city: TimezoneCity) => {
     setCompareSlots((prev) => {
       if (prev.length >= 5) return prev;
       if (prev.some((s) => s.city.name === city.name && s.city.country === city.country)) return prev;
+      posthog?.capture("compare_city_added", {
+        city_name: city.name,
+        country: city.country,
+        timezone: city.timezone,
+        slot_count: prev.length + 1,
+      });
       return [...prev, { city }];
     });
-  }, []);
+  }, [posthog]);
 
   const handleCompareRemove = useCallback((index: number) => {
     setCompareSlots((prev) => prev.filter((_, i) => i !== index));
@@ -613,6 +628,11 @@ export function TimezoneMap() {
     if (!info) return;
     // Skip if a city marker was just clicked (both fire on the same click)
     if (Date.now() - cityClickTsRef.current < 200) return;
+    posthog?.capture("country_clicked", {
+      country_name: info.name,
+      timezone: info.tzid,
+      utc_offset: info.utcOffset,
+    });
     setPopupInfo({
       countryName: info.name,
       lngLat: info.lngLat,
@@ -621,7 +641,7 @@ export function TimezoneMap() {
       tzColor: info.tzColor,
       city: null,
     });
-  }, []);
+  }, [posthog]);
 
   // When hovering a bottom label, temporarily highlight that timezone on the map
   const handleLabelHover = useCallback((color: string | null) => {
@@ -748,6 +768,13 @@ export function TimezoneMap() {
                   if (isSelected) {
                     setPopupInfo(null);
                   } else {
+                    posthog?.capture("city_selected", {
+                      city_name: city.name,
+                      country: city.country,
+                      timezone: city.timezone,
+                      utc_offset: city.utcOffset,
+                      source: "map_marker",
+                    });
                     setPopupInfo({
                       countryName: city.country,
                       lngLat: { lng: city.lng, lat: city.lat },

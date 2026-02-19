@@ -13,6 +13,7 @@ import {
   type CompareSlot,
 } from "@/lib/timezones";
 import { Clock, Search, X, Link2, Check, MapPin } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 
 type Props = {
   compareSlots: CompareSlot[];
@@ -292,6 +293,7 @@ export function ComparePanel({
   onLabelChange,
   onClose,
 }: Props) {
+  const posthog = usePostHog();
   const [, setTick] = useState(0);
   const [showCopied, setShowCopied] = useState(false);
 
@@ -305,9 +307,13 @@ export function ComparePanel({
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
+    posthog?.capture("compare_link_shared", {
+      cities: compareSlots.map((s) => s.city.name),
+      city_count: compareSlots.length,
+    });
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
-  }, []);
+  }, [posthog, compareSlots]);
 
   const myCity = findCityForTimezone(userTimezone);
   const alreadyHasMe = myCity
