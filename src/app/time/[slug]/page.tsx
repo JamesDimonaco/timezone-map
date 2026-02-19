@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const city = getCityBySlug(slug);
   if (city) {
     const flag = countryFlag(city.country);
-    const title = `Current Time in ${city.name}, ${city.country}`;
-    const description = `${flag} See the current local time in ${city.name}, ${city.country}. Timezone: ${city.timezone} (${city.utcOffset}). Live clock with timezone details.`;
+    const title = `${city.name} Time Now — Live Clock & Compare | Timezones.live`;
+    const description = `${flag} What time is it in ${city.name} right now? Live clock for ${city.name}, ${city.country} (${city.utcOffset}). Compare with any city & find meeting overlap.`;
     return {
       title,
       description,
@@ -57,10 +57,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const diff =
       parseUtcOffsetHours(cityB.utcOffset) -
       parseUtcOffsetHours(cityA.utcOffset);
+    const absDiff = Math.abs(diff);
     const diffText = formatHourDifference(diff);
+    const aheadBehind =
+      diff > 0 ? "ahead of" : diff < 0 ? "behind" : "same as";
     const canonical = canonicalComparisonSlug(cityA, cityB);
-    const title = `Time Difference: ${cityA.name} to ${cityB.name}`;
-    const description = `Compare the current time in ${cityA.name} (${cityA.utcOffset}) and ${cityB.name} (${cityB.utcOffset}). The time difference is ${diffText}.`;
+    const title = `${cityA.name} to ${cityB.name} — ${formatHourDifference(absDiff)} Time Difference & Meeting Planner`;
+    const description = `${cityA.name} is ${formatHourDifference(absDiff)} ${aheadBehind} ${cityB.name}. See both clocks live, find the best meeting times, and share a team timezone link.`;
     return {
       title,
       description,

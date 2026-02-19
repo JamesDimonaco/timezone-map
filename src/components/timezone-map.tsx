@@ -15,6 +15,7 @@ import {
   timezoneCities,
   timezoneColors,
   timezoneZoneLabels,
+  searchCities,
   formatTimeInTimezone,
   formatDateInTimezone,
   countryFlag,
@@ -572,14 +573,7 @@ export function TimezoneMap() {
     }
   }, []);
 
-  const filteredCities = searchQuery.trim()
-    ? timezoneCities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          c.utcOffset.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  const filteredCities = searchCities(searchQuery);
 
   const handleCitySelect = useCallback((city: TimezoneCity) => {
     const utcKey = getUtcOffsetKey(city.timezone);
@@ -799,6 +793,7 @@ export function TimezoneMap() {
         >
           <ComparePanel
             compareSlots={compareSlots}
+            userTimezone={userTimezone}
             onAdd={handleCompareAdd}
             onRemove={handleCompareRemove}
             onLabelChange={handleLabelChange}

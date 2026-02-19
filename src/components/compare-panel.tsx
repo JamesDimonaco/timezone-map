@@ -2,19 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  timezoneCities,
   timezoneColors,
   formatTimeInTimezone,
   formatDateInTimezone,
   formatHourAs12h,
   countryFlag,
+  findCityForTimezone,
+  searchCities,
   type TimezoneCity,
   type CompareSlot,
 } from "@/lib/timezones";
-import { Clock, Search, X, Link2, Check } from "lucide-react";
+import { Clock, Search, X, Link2, Check, MapPin } from "lucide-react";
 
 type Props = {
   compareSlots: CompareSlot[];
+  userTimezone: string;
   onAdd: (city: TimezoneCity) => void;
   onRemove: (index: number) => void;
   onLabelChange: (index: number, label: string) => void;
@@ -230,13 +232,7 @@ function CitySearchInline({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const filtered = query.trim()
-    ? timezoneCities.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query.toLowerCase()) ||
-          c.country.toLowerCase().includes(query.toLowerCase())
-      )
-    : [];
+  const filtered = searchCities(query);
 
   return (
     <div className="relative">
@@ -290,6 +286,7 @@ function CitySearchInline({
 
 export function ComparePanel({
   compareSlots,
+  userTimezone,
   onAdd,
   onRemove,
   onLabelChange,
@@ -311,6 +308,11 @@ export function ComparePanel({
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
   }, []);
+
+  const myCity = findCityForTimezone(userTimezone);
+  const alreadyHasMe = myCity
+    ? compareSlots.some((s) => s.city.name === myCity.name && s.city.country === myCity.country)
+    : true;
 
   return (
     <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg flex flex-col max-h-[70vh]">
@@ -448,7 +450,17 @@ export function ComparePanel({
 
       {/* Add city — outside scroll so dropdown isn't clipped */}
       {compareSlots.length < 5 && (
-        <div className="relative px-3 pb-2 pt-1 shrink-0">
+        <div className="relative px-3 pb-2 pt-1 shrink-0 space-y-1.5">
+          {myCity && !alreadyHasMe && (
+            <button
+              onClick={() => onAdd(myCity)}
+              className="flex items-center gap-2 w-full rounded-lg border border-dashed border-primary/30 bg-primary/5 px-2.5 py-1.5 text-sm hover:bg-primary/10 transition-colors"
+            >
+              <MapPin className="size-3.5 text-primary shrink-0" />
+              <span className="text-primary font-medium">Add my timezone</span>
+              <span className="ml-auto text-xs text-muted-foreground">{myCity.name}</span>
+            </button>
+          )}
           <CitySearchInline onSelect={onAdd} />
         </div>
       )}

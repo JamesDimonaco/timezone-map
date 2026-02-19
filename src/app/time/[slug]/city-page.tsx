@@ -5,7 +5,7 @@ import {
   getRelatedCities,
   getContrastTextColor,
 } from "@/lib/timezones";
-import { cityToSlug } from "@/lib/slugs";
+import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
 
 export function CityPage({
@@ -19,6 +19,7 @@ export function CityPage({
 }) {
   const flag = countryFlag(city.country);
   const relatedCities = getRelatedCities(city);
+  const popularComparisons = getPopularComparisons(city.name, 8);
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -172,6 +173,26 @@ export function CityPage({
                 >
                   <span>{countryFlag(related.country)}</span>
                   {related.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Compare with other cities */}
+        {popularComparisons.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-lg font-semibold mb-4">
+              Compare {city.name} with other cities
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {popularComparisons.map(({ slug: compSlug, otherCity }) => (
+                <Link
+                  key={compSlug}
+                  href={`/time/${compSlug}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm hover:bg-accent transition-colors"
+                >
+                  {city.name} to {otherCity}
                 </Link>
               ))}
             </div>

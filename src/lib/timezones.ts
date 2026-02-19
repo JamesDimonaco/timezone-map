@@ -431,3 +431,149 @@ export function getRelatedCities(city: TimezoneCity): TimezoneCity[] {
     (c) => c.utcOffset === city.utcOffset && c.name !== city.name
   );
 }
+
+/**
+ * Common timezone abbreviations mapped to their primary representative city name.
+ */
+export const timezoneAbbreviations: Record<string, string> = {
+  // North America
+  "PST": "Los Angeles", "PDT": "Los Angeles", "Pacific": "Los Angeles",
+  "MST": "Denver", "MDT": "Denver", "Mountain": "Denver",
+  "CST": "Chicago", "CDT": "Chicago", "Central": "Chicago",
+  "EST": "New York", "EDT": "New York", "Eastern": "New York",
+  "AST": "Halifax", "ADT": "Halifax", "Atlantic": "Halifax",
+  "NST": "St. John's", "NDT": "St. John's",
+  "AKST": "Anchorage", "AKDT": "Anchorage", "Alaska": "Anchorage",
+  "HST": "Honolulu", "Hawaii": "Honolulu",
+  // Europe
+  "GMT": "London", "BST": "London",
+  "WET": "Lisbon", "WEST": "Lisbon",
+  "CET": "Paris", "CEST": "Paris",
+  "EET": "Athens", "EEST": "Athens",
+  "MSK": "Moscow",
+  "TRT": "Istanbul",
+  // Asia
+  "IST": "Mumbai", "India": "Mumbai",
+  "PKT": "Karachi",
+  "NPT": "Kathmandu",
+  "BST+6": "Dhaka", "BDT": "Dhaka",
+  "ICT": "Bangkok",
+  "WIB": "Jakarta",
+  "CST+8": "Beijing", "China": "Beijing",
+  "SGT": "Singapore",
+  "HKT": "Hong Kong",
+  "KST": "Seoul",
+  "JST": "Tokyo", "Japan": "Tokyo",
+  "AWST": "Perth",
+  "ACST": "Adelaide", "ACDT": "Adelaide",
+  "AEST": "Sydney", "AEDT": "Sydney",
+  // Middle East / Africa
+  "GST": "Dubai", "Gulf": "Dubai",
+  "IRST": "Tehran", "IRDT": "Tehran",
+  "AST+3": "Riyadh", "Arabia": "Riyadh",
+  "EAT": "Nairobi",
+  "CAT": "Johannesburg", "SAST": "Johannesburg",
+  "WAT": "Lagos",
+  // South America
+  "BRT": "São Paulo", "BRST": "São Paulo",
+  "ART": "Buenos Aires",
+  "CLT": "Santiago", "CLST": "Santiago",
+  // Pacific
+  "NZST": "Auckland", "NZDT": "Auckland",
+};
+
+/**
+ * Find the best matching city for a user's IANA timezone (e.g. "America/Chicago").
+ * First tries exact IANA match, then matches by UTC offset.
+ */
+export function findCityForTimezone(ianaTimezone: string): TimezoneCity | null {
+  // Exact IANA match
+  const exact = timezoneCities.find((c) => c.timezone === ianaTimezone);
+  if (exact) return exact;
+
+  // Match by current UTC offset
+  const userOffset = getUtcOffsetKey(ianaTimezone);
+  if (userOffset) {
+    const byOffset = timezoneCities.find((c) => c.utcOffset === userOffset);
+    if (byOffset) return byOffset;
+  }
+
+  return null;
+}
+
+/**
+ * Smart city search: supports city/country names, timezone abbreviations (partial),
+ * and UTC offset queries like "utc4", "utc 4", "utc+4", "+4", "-8".
+ * When an unsigned offset like "utc4" is given, shows both +4 and -4 (positive first
+ * since most major cities are in positive UTC offsets).
+ */
+export function searchCities(query: string): TimezoneCity[] {
+  const q = query.trim();
+  if (!q) return [];
+
+  const seen = new Set<string>();
+  const results: TimezoneCity[] = [];
+
+  const addCity = (city: TimezoneCity) => {
+    const key = `${city.name}|${city.country}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      results.push(city);
+    }
+  };
+
+  const qUp = q.toUpperCase();
+  const qLow = q.toLowerCase();
+
+  // 1. Timezone abbreviation matching (prefix match, e.g. "ps" → PST/PDT → LA)
+  const abbrMatches = new Set<string>();
+  for (const [abbr, cityName] of Object.entries(timezoneAbbreviations)) {
+    if (abbr.toUpperCase().startsWith(qUp) || abbr.toLowerCase().startsWith(qLow)) {
+      abbrMatches.add(cityName);
+    }
+  }
+  for (const cityName of abbrMatches) {
+    const city = timezoneCities.find((c) => c.name === cityName);
+    if (city) addCity(city);
+  }
+
+  // 2. UTC offset matching: "utc4", "utc 4", "utc+4", "+4", "-8", "utc-5:30", etc.
+  const utcMatch = q.match(/^(?:utc\s*)?([+-])?(\d{1,2})(?::(\d{2}))?$/i);
+  if (utcMatch) {
+    const sign = utcMatch[1]; // "+", "-", or undefined
+    const hours = utcMatch[2];
+    const minutes = utcMatch[3] || "";
+    const suffix = minutes ? `:${minutes}` : "";
+
+    if (sign) {
+      // Explicit sign: match exactly
+      const key = `UTC${sign}${hours}${suffix}`;
+      for (const c of timezoneCities) {
+        if (c.utcOffset === key) addCity(c);
+      }
+    } else {
+      // No sign: show both + and -, positive first (most major cities)
+      const plusKey = hours === "0" ? "UTC+0" : `UTC+${hours}${suffix}`;
+      const minusKey = `UTC-${hours}${suffix}`;
+      for (const c of timezoneCities) {
+        if (c.utcOffset === plusKey) addCity(c);
+      }
+      for (const c of timezoneCities) {
+        if (c.utcOffset === minusKey) addCity(c);
+      }
+    }
+  }
+
+  // 3. Standard text search: city name, country, utcOffset string
+  for (const c of timezoneCities) {
+    if (
+      c.name.toLowerCase().includes(qLow) ||
+      c.country.toLowerCase().includes(qLow) ||
+      c.utcOffset.toLowerCase().includes(qLow)
+    ) {
+      addCity(c);
+    }
+  }
+
+  return results;
+}

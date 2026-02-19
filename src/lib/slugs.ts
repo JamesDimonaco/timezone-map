@@ -140,6 +140,34 @@ export function generateCanonicalComparisonSlugs(): string[] {
   return Array.from(slugs);
 }
 
+/** Exported for use by other modules (e.g. /compare landing page). */
+export { HUB_CITY_NAMES };
+
+/**
+ * Return popular comparison slugs for a given city name.
+ * Pairs the city with hub cities (excluding itself), returns canonical slugs.
+ */
+export function getPopularComparisons(
+  cityName: string,
+  limit = 8
+): { slug: string; otherCity: string }[] {
+  const city = timezoneCities.find((c) => c.name === cityName);
+  if (!city) return [];
+
+  const results: { slug: string; otherCity: string }[] = [];
+  for (const hubName of HUB_CITY_NAMES) {
+    if (hubName === cityName) continue;
+    const hub = timezoneCities.find((c) => c.name === hubName);
+    if (!hub) continue;
+    results.push({
+      slug: canonicalComparisonSlug(city, hub),
+      otherCity: hubName,
+    });
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
 /**
  * Parse a static utcOffset string like "UTC+5:30" into a number (5.5).
  * Deterministic — does not depend on current time or DST.

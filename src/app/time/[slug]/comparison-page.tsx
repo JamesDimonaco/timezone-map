@@ -4,6 +4,7 @@ import {
   cityToSlug,
   formatHourDifference,
   parseUtcOffsetHours,
+  getPopularComparisons,
 } from "@/lib/slugs";
 import { TimeComparisonDisplay } from "@/components/time-comparison-display";
 import { TimeDifferenceCard } from "@/components/time-difference-card";
@@ -193,6 +194,37 @@ export function ComparisonPage({
             <div className="text-sm font-medium">{cityB.name}</div>
             <div className="text-xs text-muted-foreground">View city page</div>
           </Link>
+        </div>
+
+        {/* More comparisons */}
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold mb-4">More comparisons</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+            {[
+              ...getPopularComparisons(cityA.name, 4)
+                .filter(({ otherCity }) => otherCity !== cityB.name)
+                .slice(0, 4)
+                .map(({ slug: s, otherCity }) => ({
+                  slug: s,
+                  label: `${cityA.name} to ${otherCity}`,
+                })),
+              ...getPopularComparisons(cityB.name, 4)
+                .filter(({ otherCity }) => otherCity !== cityA.name)
+                .slice(0, 4)
+                .map(({ slug: s, otherCity }) => ({
+                  slug: s,
+                  label: `${cityB.name} to ${otherCity}`,
+                })),
+            ].map(({ slug: s, label }) => (
+              <Link
+                key={s}
+                href={`/time/${s}`}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </main>
