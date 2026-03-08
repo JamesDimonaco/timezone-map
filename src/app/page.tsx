@@ -11,8 +11,8 @@ export default function Home() {
         abbreviation.
       </p>
       <TimezoneMap />
-      <footer className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none">
-        <div className="flex justify-center pb-2">
+      <footer className="fixed bottom-14 sm:bottom-16 left-0 right-0 z-50 pointer-events-none">
+        <div className="flex justify-center">
           <nav className="pointer-events-auto inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border text-xs text-muted-foreground">
             <Link href="/time" className="hover:text-foreground transition-colors">
               All Cities
