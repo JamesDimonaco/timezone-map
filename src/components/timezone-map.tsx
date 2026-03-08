@@ -814,7 +814,7 @@ export function TimezoneMap() {
       {/* Compare panel */}
       {compareOpen && (
         <div
-          className="absolute top-14 sm:top-20 right-0 sm:right-4 left-0 sm:left-auto z-20 px-2 sm:px-0"
+          className="absolute top-2 sm:top-20 right-0 sm:right-4 left-0 sm:left-auto z-30 px-2 sm:px-0"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
@@ -880,14 +880,14 @@ export function TimezoneMap() {
             </span>
           </button>
 
-          {/* City toggle */}
+          {/* Pins toggle */}
           <button
             onClick={() => {
               setShowCities(!showCities);
               if (showCities) setPopupInfo(null);
             }}
             className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors"
-            title={showCities ? "Hide cities" : "Show cities"}
+            title={showCities ? "Hide pins" : "Show pins"}
           >
             {showCities ? (
               <Eye className="size-4 text-muted-foreground" />
@@ -895,7 +895,7 @@ export function TimezoneMap() {
               <EyeOff className="size-4 text-muted-foreground" />
             )}
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              Cities
+              Pins
             </span>
           </button>
 

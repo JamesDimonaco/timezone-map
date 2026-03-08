@@ -12,7 +12,7 @@ import {
   type TimezoneCity,
   type CompareSlot,
 } from "@/lib/timezones";
-import { Clock, Search, X, Link2, Check, MapPin } from "lucide-react";
+import { Clock, Search, X, Link2, Check, MapPin, PhoneCall } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 
 type Props = {
@@ -102,6 +102,65 @@ function computeOverlapInfo(slots: CompareSlot[]): OverlapInfo | null {
   const bestSlots = scored.slice(0, 3).map(({ utcHour, times }) => ({ utcHour, times }));
 
   return { overlapUtcHours, count: overlapUtcHours.length, perSlot, bestSlots };
+}
+
+type BestCallInfo = {
+  awakeOverlapCount: number;
+  bestHour: { utcHour: number; times: { label?: string; city: string; formatted: string }[] } | null;
+};
+
+function computeBestCallTime(slots: CompareSlot[]): BestCallInfo | null {
+  if (slots.length < 2) return null;
+
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+
+  const slotOffsets = slots.map((s) => {
+    const localHour = getHourInTimezone(s.city.timezone);
+    return localHour - utcHour;
+  });
+
+  // Awake window: 8am–10pm (14 hours)
+  const awakeRanges = slotOffsets.map((offset) => {
+    const start = ((8 - offset + 24) % 24);
+    const end = ((22 - offset + 24) % 24);
+    return { start, end };
+  });
+
+  const awakeOverlapHours: number[] = [];
+  for (let h = 0; h < 24; h++) {
+    const allAwake = awakeRanges.every(({ start, end }) => {
+      if (start < end) return h >= start && h < end;
+      return h >= start || h < end;
+    });
+    if (allAwake) awakeOverlapHours.push(h);
+  }
+
+  if (awakeOverlapHours.length === 0) {
+    return { awakeOverlapCount: 0, bestHour: null };
+  }
+
+  // Score each hour by proximity to 2pm (14:00) local — pleasant call time
+  const scored = awakeOverlapHours.map((utcH) => {
+    const score = slotOffsets.reduce((sum, offset) => {
+      const localH = ((utcH + offset) % 24 + 24) % 24;
+      return sum + (10 - Math.abs(localH - 14));
+    }, 0);
+    return { utcH, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+
+  const times = slots.map((s, i) => {
+    const localH = ((best.utcH + slotOffsets[i]) % 24 + 24) % 24;
+    return { label: s.label, city: s.city.name, formatted: formatHourAs12h(localH) };
+  });
+
+  return {
+    awakeOverlapCount: awakeOverlapHours.length,
+    bestHour: { utcHour: best.utcH, times },
+  };
 }
 
 // 24-hour timeline bar showing working hours overlap
@@ -304,6 +363,7 @@ export function ComparePanel({
   }, []);
 
   const overlapInfo = computeOverlapInfo(compareSlots);
+  const bestCallInfo = computeBestCallTime(compareSlots);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
@@ -321,7 +381,7 @@ export function ComparePanel({
     : true;
 
   return (
-    <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg flex flex-col max-h-[70vh]">
+    <div className="pointer-events-auto w-full sm:w-80 rounded-xl border bg-background/95 backdrop-blur-md shadow-lg flex flex-col max-h-[calc(100vh-5rem)] sm:max-h-[70vh]">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b shrink-0">
         <div className="flex items-center gap-2">
@@ -447,6 +507,39 @@ export function ComparePanel({
               ) : (
                 <div className="text-xs text-muted-foreground text-center">
                   No overlapping work hours
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Best time to call */}
+          {compareSlots.length >= 2 && bestCallInfo && (
+            <div className="rounded-md bg-sky-500/5 border border-sky-500/20 p-2.5 space-y-2">
+              <div className="flex items-center gap-1.5 justify-center">
+                <PhoneCall className="size-3.5 text-sky-500" />
+                <span className="text-xs font-medium text-sky-600 dark:text-sky-400">Best time to call</span>
+              </div>
+              {bestCallInfo.bestHour ? (
+                <>
+                  <div className="space-y-0.5">
+                    {bestCallInfo.bestHour.times.map((t, i) => (
+                      <div key={i} className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground truncate max-w-[120px]">
+                          {t.label || t.city}
+                        </span>
+                        <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
+                          {t.formatted}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground text-center">
+                    {bestCallInfo.awakeOverlapCount}h of shared awake time (8am–10pm)
+                  </div>
+                </>
+              ) : (
+                <div className="text-[11px] text-muted-foreground text-center">
+                  No shared awake hours — consider an async message
                 </div>
               )}
             </div>

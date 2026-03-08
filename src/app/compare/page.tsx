@@ -110,28 +110,37 @@ export default function ComparePage() {
       />
 
       <div className="max-w-3xl mx-auto px-4 py-12 sm:py-16">
-        {/* Back link */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="shrink-0"
+        {/* Navigation */}
+        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
           >
-            <path
-              d="M10 12L6 8L10 4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Back to map
-        </Link>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              className="shrink-0"
+            >
+              <path
+                d="M10 12L6 8L10 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Map
+          </Link>
+          <span className="text-muted-foreground/40">|</span>
+          <Link
+            href="/time"
+            className="hover:text-foreground transition-colors"
+          >
+            Cities
+          </Link>
+        </div>
 
         {/* Hero */}
         <div className="text-center mb-12">
