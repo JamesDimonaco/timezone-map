@@ -154,6 +154,7 @@ export default function ApiDocsPage() {
             {[
               { format: "City name", example: "london, tokyo" },
               { format: "City slug", example: "new-york, sao-paulo" },
+              { format: "IANA timezone", example: "America/New_York, Asia/Tokyo" },
               { format: "Timezone abbreviation", example: "PST, JST, GMT" },
               { format: "UTC offset", example: "utc+5, +9, utc-3:30" },
             ].map((item) => (
@@ -180,7 +181,7 @@ export default function ApiDocsPage() {
                 name: "city",
                 required: true,
                 description:
-                  "City name, slug, timezone abbreviation, or UTC offset",
+                  "City name, slug, IANA timezone (e.g. America/New_York), abbreviation, or UTC offset",
               },
             ]}
             example={`curl "https://timezones.live/api/v1/time?city=london"`}
@@ -211,12 +212,12 @@ export default function ApiDocsPage() {
               {
                 name: "from",
                 required: true,
-                description: "Source city name, slug, abbreviation, or UTC offset",
+                description: "Source city name, slug, IANA timezone, abbreviation, or UTC offset",
               },
               {
                 name: "to",
                 required: true,
-                description: "Target city name, slug, abbreviation, or UTC offset",
+                description: "Target city name, slug, IANA timezone, abbreviation, or UTC offset",
               },
             ]}
             example={`curl "https://timezones.live/api/v1/compare?from=london&to=tokyo"`}
@@ -256,6 +257,30 @@ export default function ApiDocsPage() {
             )}
           />
         </div>
+
+        {/* Browser Usage */}
+        <section className="mb-10">
+          <h2 className="text-xl font-semibold mb-4">Browser Usage</h2>
+          <p className="text-muted-foreground mb-3">
+            You can pass the browser&apos;s IANA timezone directly — no need to
+            convert to UTC offsets.
+          </p>
+          <CodeBlock>
+            {`// Get the user's IANA timezone from the browser
+const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// e.g. "America/New_York"
+
+// Pass it directly to the API
+const res = await fetch(\`https://timezones.live/api/v1/time?city=\${tz}\`);
+const { data } = await res.json();
+// { city: "New York", timezone: "America/New_York", currentTime: "02:30 PM", ... }
+
+// Compare the user's timezone with another city
+const cmp = await fetch(
+  \`https://timezones.live/api/v1/compare?from=\${tz}&to=Asia/Tokyo\`
+);`}
+          </CodeBlock>
+        </section>
 
         {/* Error Responses */}
         <section className="mb-10">

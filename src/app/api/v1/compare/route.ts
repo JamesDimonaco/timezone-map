@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCityBySlug } from "@/lib/slugs";
 import {
   searchCities,
+  findCityForTimezone,
   formatTimeInTimezone,
   formatDateInTimezone,
   getUtcOffsetKey,
@@ -28,6 +29,11 @@ function buildCityResponse(city: TimezoneCity) {
 function resolveCity(query: string): TimezoneCity | null {
   const bySlug = getCityBySlug(query.toLowerCase().replace(/\s+/g, "-"));
   if (bySlug) return bySlug;
+
+  if (query.includes("/")) {
+    const byTz = findCityForTimezone(query);
+    if (byTz) return byTz;
+  }
 
   const results = searchCities(query);
   if (results.length > 0) return results[0];

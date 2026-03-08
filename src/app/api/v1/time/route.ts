@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCityBySlug } from "@/lib/slugs";
 import {
   searchCities,
+  findCityForTimezone,
   formatTimeInTimezone,
   formatDateInTimezone,
   getUtcOffsetKey,
@@ -28,7 +29,13 @@ function resolveCity(query: string): TimezoneCity | null {
   const bySlug = getCityBySlug(query.toLowerCase().replace(/\s+/g, "-"));
   if (bySlug) return bySlug;
 
-  // 2. Try search (first result)
+  // 2. Try IANA timezone (e.g. "America/New_York")
+  if (query.includes("/")) {
+    const byTz = findCityForTimezone(query);
+    if (byTz) return byTz;
+  }
+
+  // 3. Try search (first result)
   const results = searchCities(query);
   if (results.length > 0) return results[0];
 
