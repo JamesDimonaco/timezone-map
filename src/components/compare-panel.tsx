@@ -12,7 +12,7 @@ import {
   type TimezoneCity,
   type CompareSlot,
 } from "@/lib/timezones";
-import { Clock, Search, X, Link2, Check, MapPin, PhoneCall } from "lucide-react";
+import { Clock, Search, X, Link2, Check, MapPin, PhoneCall, RotateCcw, ChevronDown } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 
 type Props = {
@@ -24,17 +24,84 @@ type Props = {
   onClose: () => void;
 };
 
-// Get the hour in a timezone (0-23)
-function getHourInTimezone(timezone: string): number {
+type PinnedTime = {
+  cityName: string;
+  hour: number; // 0-23
+  minute: number; // 0-59
+};
+
+// Get the current hour and minute in a timezone
+function getTimeInTimezone(timezone: string): { hour: number; minute: number } {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: timezone,
       hour: "numeric",
+      minute: "numeric",
       hour12: false,
     }).formatToParts(new Date());
-    return parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+    return { hour: hour === 24 ? 0 : hour, minute };
   } catch {
-    return 0;
+    return { hour: 0, minute: 0 };
+  }
+}
+
+// Get the hour in a timezone (0-23)
+function getHourInTimezone(timezone: string): number {
+  return getTimeInTimezone(timezone).hour;
+}
+
+// Given a pinned time in a specific timezone, return a Date representing that moment
+function getPinnedDate(hour: number, minute: number, timezone: string): Date {
+  const now = new Date();
+  const current = getTimeInTimezone(timezone);
+  const diffMinutes = (hour - current.hour) * 60 + (minute - current.minute);
+  return new Date(now.getTime() + diffMinutes * 60 * 1000);
+}
+
+// Get the hour and minute at a specific Date in a timezone
+function getTimeAtDate(date: Date, timezone: string): { hour: number; minute: number } {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "numeric",
+      minute: "numeric",
+      hour12: false,
+    }).formatToParts(date);
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+    return { hour: hour === 24 ? 0 : hour, minute };
+  } catch {
+    return { hour: 0, minute: 0 };
+  }
+}
+
+// Format time at a specific Date in a timezone
+function formatTimeAt(date: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return "--:--";
+  }
+}
+
+// Format date at a specific Date in a timezone
+function formatDateAt(date: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    }).format(date);
+  } catch {
+    return "";
   }
 }
 
@@ -254,6 +321,10 @@ function EditableLabel({
       <input
         ref={inputRef}
         type="text"
+        name="timezone-label"
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={save}
@@ -284,6 +355,78 @@ function EditableLabel({
   );
 }
 
+function InlineTimePicker({
+  initialHour,
+  initialMinute,
+  onSet,
+  onCancel,
+}: {
+  initialHour: number;
+  initialMinute: number;
+  onSet: (hour: number, minute: number) => void;
+  onCancel: () => void;
+}) {
+  const [hour12, setHour12] = useState(() => {
+    const h = initialHour % 12;
+    return h === 0 ? 12 : h;
+  });
+  const [minute, setMinute] = useState(() => {
+    const options = [0, 15, 30, 45];
+    return options.reduce((prev, curr) =>
+      Math.abs(curr - initialMinute) < Math.abs(prev - initialMinute) ? curr : prev
+    );
+  });
+  const [isPM, setIsPM] = useState(initialHour >= 12);
+
+  const handleSet = () => {
+    let h24 = hour12 % 12;
+    if (isPM) h24 += 12;
+    onSet(h24, minute);
+  };
+
+  return (
+    <div className="flex items-center gap-1 mt-1.5">
+      <select
+        value={hour12}
+        onChange={(e) => setHour12(Number(e.target.value))}
+        className="bg-muted/50 rounded px-1 py-0.5 text-xs font-mono outline-none border border-border/50"
+      >
+        {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((h) => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">:</span>
+      <select
+        value={minute}
+        onChange={(e) => setMinute(Number(e.target.value))}
+        className="bg-muted/50 rounded px-1 py-0.5 text-xs font-mono outline-none border border-border/50"
+      >
+        {[0, 15, 30, 45].map((m) => (
+          <option key={m} value={m}>{m.toString().padStart(2, "0")}</option>
+        ))}
+      </select>
+      <button
+        onClick={() => setIsPM(!isPM)}
+        className="bg-muted/50 rounded px-1.5 py-0.5 text-[10px] font-semibold border border-border/50 hover:bg-muted transition-colors min-w-[28px]"
+      >
+        {isPM ? "PM" : "AM"}
+      </button>
+      <button
+        onClick={handleSet}
+        className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-[10px] font-semibold hover:bg-primary/90 transition-colors"
+      >
+        Set
+      </button>
+      <button
+        onClick={onCancel}
+        className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  );
+}
+
 function CitySearchInline({
   onSelect,
 }: {
@@ -299,7 +442,11 @@ function CitySearchInline({
       <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-2.5 py-1.5">
         <Search className="size-3.5 text-muted-foreground shrink-0" />
         <input
-          type="text"
+          type="search"
+          name="city-search"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
           placeholder="Add city..."
           value={query}
           onChange={(e) => {
@@ -355,12 +502,34 @@ export function ComparePanel({
   const posthog = usePostHog();
   const [, setTick] = useState(0);
   const [showCopied, setShowCopied] = useState(false);
+  const [pinnedTime, setPinnedTime] = useState<PinnedTime | null>(null);
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [showOverlap, setShowOverlap] = useState(false);
 
   // Update every second to keep times in sync
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Clear pin when pinned city is removed
+  useEffect(() => {
+    if (pinnedTime && !compareSlots.some((s) => s.city.name === pinnedTime.cityName)) {
+      setPinnedTime(null);
+      setEditingSlot(null);
+    }
+  }, [compareSlots, pinnedTime]);
+
+  // Compute pinned date for time conversion
+  const pinnedCity = pinnedTime
+    ? compareSlots.find((s) => s.city.name === pinnedTime.cityName)
+    : null;
+  const pinnedDate = pinnedTime && pinnedCity
+    ? getPinnedDate(pinnedTime.hour, pinnedTime.minute, pinnedCity.city.timezone)
+    : null;
+  const pinnedTimeStr = pinnedTime
+    ? `${pinnedTime.hour % 12 || 12}:${pinnedTime.minute.toString().padStart(2, "0")} ${pinnedTime.hour >= 12 ? "PM" : "AM"}`
+    : "";
 
   const overlapInfo = computeOverlapInfo(compareSlots);
   const bestCallInfo = computeBestCallTime(compareSlots);
@@ -409,6 +578,22 @@ export function ComparePanel({
         </div>
       </div>
 
+      {/* Pinned time banner */}
+      {pinnedTime && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-primary/10 border-b shrink-0">
+          <span className="text-xs text-primary font-medium">
+            {pinnedTimeStr} in {pinnedTime.cityName}
+          </span>
+          <button
+            onClick={() => { setPinnedTime(null); setEditingSlot(null); }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RotateCcw className="size-3" />
+            Live
+          </button>
+        </div>
+      )}
+
       {/* Scrollable city list */}
       <div className="overflow-y-auto flex-1 min-h-0">
         <div className="p-3 space-y-3">
@@ -416,8 +601,9 @@ export function ComparePanel({
             const { city } = slot;
             const color = timezoneColors[city.utcOffset] || "#6366f1";
             const flag = countryFlag(city.country);
-            const time = formatTimeInTimezone(city.timezone);
-            const date = formatDateInTimezone(city.timezone);
+            const isPinSource = pinnedTime?.cityName === city.name;
+            const time = pinnedDate ? formatTimeAt(pinnedDate, city.timezone) : formatTimeInTimezone(city.timezone);
+            const date = pinnedDate ? formatDateAt(pinnedDate, city.timezone) : formatDateInTimezone(city.timezone);
 
             return (
               <div key={`${city.name}-${i}`} className="space-y-1.5 rounded-lg bg-muted/30 p-2.5">
@@ -443,18 +629,39 @@ export function ComparePanel({
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span
-                      className="text-lg font-bold tabular-nums"
+                    <button
+                      onClick={() => setEditingSlot(editingSlot === i ? null : i)}
+                      className="text-lg font-bold tabular-nums hover:opacity-80 transition-opacity text-left"
                       style={{ color }}
+                      title="Click to set a specific time"
                     >
                       {time}
-                    </span>
+                    </button>
+                    {isPinSource && (
+                      <span className="text-[9px] text-primary/70 font-medium uppercase tracking-wide">set</span>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-[11px] text-muted-foreground">{date}</div>
                     <div className="text-[10px] font-mono text-muted-foreground/70">{city.utcOffset}</div>
                   </div>
                 </div>
+                {editingSlot === i && (() => {
+                  const pickerTime = pinnedDate
+                    ? getTimeAtDate(pinnedDate, city.timezone)
+                    : getTimeInTimezone(city.timezone);
+                  return (
+                    <InlineTimePicker
+                      initialHour={pickerTime.hour}
+                      initialMinute={pinnedDate ? pickerTime.minute : 0}
+                      onSet={(h, m) => {
+                        setPinnedTime({ cityName: city.name, hour: h, minute: m });
+                        setEditingSlot(null);
+                      }}
+                      onCancel={() => setEditingSlot(null)}
+                    />
+                  );
+                })()}
                 <TimelineBar
                   timezone={city.timezone}
                   color={color}
@@ -464,85 +671,97 @@ export function ComparePanel({
             );
           })}
 
-          {/* Enhanced meeting time finder */}
-          {compareSlots.length >= 2 && overlapInfo && (
-            <div className="rounded-md bg-muted/50 p-2.5 space-y-2">
-              {overlapInfo.count > 0 ? (
-                <>
-                  <div className="text-xs text-muted-foreground text-center">
-                    Overlap:{" "}
-                    <span className="font-semibold text-foreground">
-                      {overlapInfo.count}h
-                    </span>
-                  </div>
-                  {/* Per-person overlap windows */}
-                  <div className="space-y-0.5">
-                    {overlapInfo.perSlot.map((ps, i) => (
-                      <div key={i} className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground truncate max-w-[100px]">
-                          {ps.label || ps.cityName}
-                        </span>
-                        <span className="font-mono text-foreground/80">
-                          {formatHourAs12h(ps.localStart)} – {formatHourAs12h(ps.localEnd)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Best meeting slots */}
-                  {overlapInfo.bestSlots.length > 0 && (
-                    <div className="border-t border-border/50 pt-2 space-y-1">
-                      <div className="text-[10px] text-muted-foreground font-medium">Best times:</div>
-                      {overlapInfo.bestSlots.map((bs, i) => (
-                        <div key={i} className="text-[10px] text-foreground/70 font-mono flex flex-wrap gap-x-2">
-                          {bs.times.map((t, j) => (
-                            <span key={j}>
-                              {t.formatted} {t.label || t.city}
+          {/* Work hours overlap toggle */}
+          {compareSlots.length >= 2 && (
+            <>
+              <button
+                onClick={() => setShowOverlap(!showOverlap)}
+                className="flex items-center gap-1.5 w-full justify-center rounded-md bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+              >
+                <PhoneCall className="size-3" />
+                <span>{showOverlap ? "Hide" : "Show"} work hours overlap</span>
+                <ChevronDown className={`size-3 transition-transform ${showOverlap ? "rotate-180" : ""}`} />
+              </button>
+              {showOverlap && (
+                <div className="space-y-3">
+                  {overlapInfo && (
+                    <div className="rounded-md bg-muted/50 p-2.5 space-y-2">
+                      {overlapInfo.count > 0 ? (
+                        <>
+                          <div className="text-xs text-muted-foreground text-center">
+                            Overlap:{" "}
+                            <span className="font-semibold text-foreground">
+                              {overlapInfo.count}h
                             </span>
-                          ))}
+                          </div>
+                          <div className="space-y-0.5">
+                            {overlapInfo.perSlot.map((ps, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground truncate max-w-[100px]">
+                                  {ps.label || ps.cityName}
+                                </span>
+                                <span className="font-mono text-foreground/80">
+                                  {formatHourAs12h(ps.localStart)} – {formatHourAs12h(ps.localEnd)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {overlapInfo.bestSlots.length > 0 && (
+                            <div className="border-t border-border/50 pt-2 space-y-1">
+                              <div className="text-[10px] text-muted-foreground font-medium">Best times:</div>
+                              {overlapInfo.bestSlots.map((bs, idx) => (
+                                <div key={idx} className="text-[10px] text-foreground/70 font-mono flex flex-wrap gap-x-2">
+                                  {bs.times.map((t, j) => (
+                                    <span key={j}>
+                                      {t.formatted} {t.label || t.city}
+                                    </span>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground text-center">
+                          No overlapping work hours
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
-                </>
-              ) : (
-                <div className="text-xs text-muted-foreground text-center">
-                  No overlapping work hours
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Best time to call */}
-          {compareSlots.length >= 2 && bestCallInfo && (
-            <div className="rounded-md bg-sky-500/5 border border-sky-500/20 p-2.5 space-y-2">
-              <div className="flex items-center gap-1.5 justify-center">
-                <PhoneCall className="size-3.5 text-sky-500" />
-                <span className="text-xs font-medium text-sky-600 dark:text-sky-400">Best time to call</span>
-              </div>
-              {bestCallInfo.bestHour ? (
-                <>
-                  <div className="space-y-0.5">
-                    {bestCallInfo.bestHour.times.map((t, i) => (
-                      <div key={i} className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground truncate max-w-[120px]">
-                          {t.label || t.city}
-                        </span>
-                        <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
-                          {t.formatted}
-                        </span>
+                  {bestCallInfo && (
+                    <div className="rounded-md bg-sky-500/5 border border-sky-500/20 p-2.5 space-y-2">
+                      <div className="flex items-center gap-1.5 justify-center">
+                        <PhoneCall className="size-3.5 text-sky-500" />
+                        <span className="text-xs font-medium text-sky-600 dark:text-sky-400">Best time to call</span>
                       </div>
-                    ))}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground text-center">
-                    {bestCallInfo.awakeOverlapCount}h of shared awake time (8am–10pm)
-                  </div>
-                </>
-              ) : (
-                <div className="text-[11px] text-muted-foreground text-center">
-                  No shared awake hours — consider an async message
+                      {bestCallInfo.bestHour ? (
+                        <>
+                          <div className="space-y-0.5">
+                            {bestCallInfo.bestHour.times.map((t, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground truncate max-w-[120px]">
+                                  {t.label || t.city}
+                                </span>
+                                <span className="font-mono font-semibold text-sky-600 dark:text-sky-400">
+                                  {t.formatted}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground text-center">
+                            {bestCallInfo.awakeOverlapCount}h of shared awake time (8am–10pm)
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-[11px] text-muted-foreground text-center">
+                          No shared awake hours — consider an async message
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
