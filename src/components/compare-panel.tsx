@@ -12,7 +12,7 @@ import {
   type TimezoneCity,
   type CompareSlot,
 } from "@/lib/timezones";
-import { Clock, Search, X, Link2, Check, MapPin, PhoneCall, RotateCcw, ChevronDown } from "lucide-react";
+import { Clock, Search, X, Link2, Check, MapPin, PhoneCall, RotateCcw, ChevronDown, Pencil } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 
 type Props = {
@@ -627,25 +627,27 @@ export function ComparePanel({
                 <div className="text-xs text-muted-foreground pl-7">
                   {city.name}
                 </div>
-                <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setEditingSlot(editingSlot === i ? null : i)}
+                  className="flex items-center justify-between w-full rounded-md px-1.5 py-1 -mx-1.5 hover:bg-muted/50 transition-colors group cursor-pointer"
+                >
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setEditingSlot(editingSlot === i ? null : i)}
-                      className="text-lg font-bold tabular-nums hover:opacity-80 transition-opacity text-left"
-                      style={{ color }}
-                      title="Click to set a specific time"
+                    <span
+                      className="text-lg font-bold tabular-nums text-left underline decoration-dotted underline-offset-4 decoration-1"
+                      style={{ color, textDecorationColor: `${color}60` }}
                     >
                       {time}
-                    </button>
+                    </span>
+                    <Pencil className="size-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
                     {isPinSource && (
-                      <span className="text-[9px] text-primary/70 font-medium uppercase tracking-wide">set</span>
+                      <span className="text-[9px] bg-primary/15 text-primary rounded px-1 py-0.5 font-medium uppercase tracking-wide">pinned</span>
                     )}
                   </div>
                   <div className="text-right">
                     <div className="text-[11px] text-muted-foreground">{date}</div>
                     <div className="text-[10px] font-mono text-muted-foreground/70">{city.utcOffset}</div>
                   </div>
-                </div>
+                </button>
                 {editingSlot === i && (() => {
                   const pickerTime = pinnedDate
                     ? getTimeAtDate(pinnedDate, city.timezone)
@@ -670,6 +672,13 @@ export function ComparePanel({
               </div>
             );
           })}
+
+          {/* Hint for time converter */}
+          {compareSlots.length >= 1 && !pinnedTime && (
+            <div className="text-[11px] text-muted-foreground/60 text-center italic">
+              Tap a time to convert it across cities
+            </div>
+          )}
 
           {/* Work hours overlap toggle */}
           {compareSlots.length >= 2 && (
