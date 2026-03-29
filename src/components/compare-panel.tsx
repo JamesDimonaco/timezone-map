@@ -25,7 +25,8 @@ type Props = {
 };
 
 type PinnedTime = {
-  cityName: string;
+  cityKey: string; // unique: "name|timezone"
+  cityName: string; // display name
   hour: number; // 0-23
   minute: number; // 0-59
 };
@@ -77,33 +78,6 @@ function getTimeAtDate(date: Date, timezone: string): { hour: number; minute: nu
   }
 }
 
-// Format time at a specific Date in a timezone
-function formatTimeAt(date: Date, timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  } catch {
-    return "--:--";
-  }
-}
-
-// Format date at a specific Date in a timezone
-function formatDateAt(date: Date, timezone: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    }).format(date);
-  } catch {
-    return "";
-  }
-}
 
 type OverlapInfo = {
   overlapUtcHours: number[];
@@ -508,7 +482,7 @@ export function ComparePanel({
 
   // Clear pin when pinned city is removed
   useEffect(() => {
-    if (pinnedTime && !compareSlots.some((s) => s.city.name === pinnedTime.cityName)) {
+    if (pinnedTime && !compareSlots.some((s) => `${s.city.name}|${s.city.timezone}` === pinnedTime.cityKey)) {
       setPinnedTime(null);
       setEditingSlot(null);
     }
@@ -516,7 +490,7 @@ export function ComparePanel({
 
   // Compute pinned date for time conversion
   const pinnedCity = pinnedTime
-    ? compareSlots.find((s) => s.city.name === pinnedTime.cityName)
+    ? compareSlots.find((s) => `${s.city.name}|${s.city.timezone}` === pinnedTime.cityKey)
     : null;
   const pinnedDate = pinnedTime && pinnedCity
     ? getPinnedDate(pinnedTime.hour, pinnedTime.minute, pinnedCity.city.timezone)
@@ -595,9 +569,10 @@ export function ComparePanel({
             const { city } = slot;
             const color = timezoneColors[city.utcOffset] || "#6366f1";
             const flag = countryFlag(city.country);
-            const isPinSource = pinnedTime?.cityName === city.name;
-            const time = pinnedDate ? formatTimeAt(pinnedDate, city.timezone) : formatTimeInTimezone(city.timezone);
-            const date = pinnedDate ? formatDateAt(pinnedDate, city.timezone) : formatDateInTimezone(city.timezone);
+            const cityKey = `${city.name}|${city.timezone}`;
+            const isPinSource = pinnedTime?.cityKey === cityKey;
+            const time = formatTimeInTimezone(city.timezone, pinnedDate ?? undefined);
+            const date = formatDateInTimezone(city.timezone, pinnedDate ?? undefined);
 
             return (
               <div key={`${city.name}-${i}`} className="space-y-1.5 rounded-lg bg-muted/30 p-2.5">
@@ -649,9 +624,9 @@ export function ComparePanel({
                   return (
                     <InlineTimePicker
                       initialHour={pickerTime.hour}
-                      initialMinute={pinnedDate ? pickerTime.minute : 0}
+                      initialMinute={pickerTime.minute}
                       onSet={(h, m) => {
-                        setPinnedTime({ cityName: city.name, hour: h, minute: m });
+                        setPinnedTime({ cityKey, cityName: city.name, hour: h, minute: m });
                         setEditingSlot(null);
                       }}
                       onCancel={() => setEditingSlot(null)}
