@@ -387,6 +387,7 @@ function InlineTimePicker({
       </button>
       <button
         onClick={onCancel}
+        aria-label="Cancel"
         className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0"
       >
         <X className="size-3.5" />
@@ -586,7 +587,7 @@ export function ComparePanel({
                     />
                   </div>
                   <button
-                    onClick={() => onRemove(i)}
+                    onClick={() => { setEditingSlot(null); onRemove(i); }}
                     className="rounded p-0.5 hover:bg-muted transition-colors shrink-0"
                   >
                     <X className="size-3 text-muted-foreground" />
