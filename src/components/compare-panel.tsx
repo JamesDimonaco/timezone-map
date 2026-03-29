@@ -366,62 +366,56 @@ function InlineTimePicker({
   onSet: (hour: number, minute: number) => void;
   onCancel: () => void;
 }) {
-  const [hour12, setHour12] = useState(() => {
-    const h = initialHour % 12;
-    return h === 0 ? 12 : h;
-  });
-  const [minute, setMinute] = useState(() => {
-    const options = [0, 15, 30, 45];
-    return options.reduce((prev, curr) =>
-      Math.abs(curr - initialMinute) < Math.abs(prev - initialMinute) ? curr : prev
-    );
-  });
-  const [isPM, setIsPM] = useState(initialHour >= 12);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const toTimeString = (h: number, m: number) =>
+    `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
 
-  const handleSet = () => {
-    let h24 = hour12 % 12;
-    if (isPM) h24 += 12;
-    onSet(h24, minute);
+  const [value, setValue] = useState(() => toTimeString(initialHour, initialMinute));
+
+  useEffect(() => {
+    // Auto-focus and open the native picker on mount
+    const el = inputRef.current;
+    if (el) {
+      el.focus();
+      // showPicker() opens the native time picker on supported browsers
+      try { el.showPicker(); } catch { /* not supported in all browsers */ }
+    }
+  }, []);
+
+  const handleSubmit = () => {
+    const [h, m] = value.split(":").map(Number);
+    if (!isNaN(h) && !isNaN(m)) onSet(h, m);
   };
 
   return (
-    <div className="flex items-center gap-1 mt-1.5">
-      <select
-        value={hour12}
-        onChange={(e) => setHour12(Number(e.target.value))}
-        className="bg-muted/50 rounded px-1 py-0.5 text-xs font-mono outline-none border border-border/50"
-      >
-        {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((h) => (
-          <option key={h} value={h}>{h}</option>
-        ))}
-      </select>
-      <span className="text-xs text-muted-foreground">:</span>
-      <select
-        value={minute}
-        onChange={(e) => setMinute(Number(e.target.value))}
-        className="bg-muted/50 rounded px-1 py-0.5 text-xs font-mono outline-none border border-border/50"
-      >
-        {[0, 15, 30, 45].map((m) => (
-          <option key={m} value={m}>{m.toString().padStart(2, "0")}</option>
-        ))}
-      </select>
+    <div className="flex items-center gap-2 mt-1.5 rounded-md bg-muted/50 border border-border/50 p-1.5">
+      <Clock className="size-3.5 text-muted-foreground shrink-0" />
+      <input
+        ref={inputRef}
+        type="time"
+        name="time-picker"
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSubmit();
+          if (e.key === "Escape") onCancel();
+        }}
+        className="bg-transparent text-sm font-mono outline-none flex-1 min-w-0 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute"
+      />
       <button
-        onClick={() => setIsPM(!isPM)}
-        className="bg-muted/50 rounded px-1.5 py-0.5 text-[10px] font-semibold border border-border/50 hover:bg-muted transition-colors min-w-[28px]"
+        onClick={handleSubmit}
+        className="bg-primary text-primary-foreground rounded-md px-2.5 py-1 text-xs font-medium hover:bg-primary/90 transition-colors shrink-0"
       >
-        {isPM ? "PM" : "AM"}
-      </button>
-      <button
-        onClick={handleSet}
-        className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-[10px] font-semibold hover:bg-primary/90 transition-colors"
-      >
-        Set
+        Convert
       </button>
       <button
         onClick={onCancel}
-        className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+        className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0"
       >
-        <X className="size-3" />
+        <X className="size-3.5" />
       </button>
     </div>
   );
