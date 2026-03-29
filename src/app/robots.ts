@@ -6,8 +6,14 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
+        disallow: [
+          "/*.php",
+          "/_next/static/",
+          "/cdn-cgi/",
+        ],
       },
     ],
+    host: "https://timezones.live",
     sitemap: "https://timezones.live/sitemap.xml",
   };
 }
