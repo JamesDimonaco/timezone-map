@@ -124,6 +124,7 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
   const hoveredColorRef = useRef<string | null>(null);
   const hoveredCountryIdRef = useRef<number | null>(null);
   const externalColorRef = useRef<string | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
   const onTzHoverRef = useRef(onTzHover);
   const onCountryClickRef = useRef(onCountryClick);
   const onMapInteractRef = useRef(onMapInteract);
@@ -344,11 +345,10 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
             }
 
             if (tzColor) {
-              onTzHoverRef.current?.({
-                tzColor,
-                utcOffset: utcOffset || "",
-                tzid: tzid || "",
-                point: { x: e.point.x, y: e.point.y },
+              if (hoverRafRef.current) cancelAnimationFrame(hoverRafRef.current);
+              const info = { tzColor, utcOffset: utcOffset || "", tzid: tzid || "", point: { x: e.point.x, y: e.point.y } };
+              hoverRafRef.current = requestAnimationFrame(() => {
+                onTzHoverRef.current?.(info);
               });
             }
           }
@@ -384,6 +384,7 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
           );
           clearCountryHighlight();
           map.getCanvas().style.cursor = "";
+          if (hoverRafRef.current) cancelAnimationFrame(hoverRafRef.current);
           onTzHoverRef.current?.(null);
         };
 
@@ -428,6 +429,7 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
     addLayer();
 
     return () => {
+      if (hoverRafRef.current) cancelAnimationFrame(hoverRafRef.current);
       try {
         if (map.getLayer(TZ_LINES_LAYER)) map.removeLayer(TZ_LINES_LAYER);
         if (map.getSource(TZ_LINES_SOURCE)) map.removeSource(TZ_LINES_SOURCE);

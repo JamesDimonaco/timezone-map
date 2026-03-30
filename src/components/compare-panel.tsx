@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   timezoneColors,
   formatTimeInTimezone,
@@ -500,8 +500,10 @@ export function ComparePanel({
     ? `${pinnedTime.hour % 12 || 12}:${pinnedTime.minute.toString().padStart(2, "0")} ${pinnedTime.hour >= 12 ? "PM" : "AM"}`
     : "";
 
-  const overlapInfo = computeOverlapInfo(compareSlots);
-  const bestCallInfo = computeBestCallTime(compareSlots);
+  // Only recompute when slots change (timezone, label, or city name), not on every tick
+  const slotKey = compareSlots.map((s) => `${s.city.timezone}:${s.city.name}:${s.label ?? ""}`).join(",");
+  const overlapInfo = useMemo(() => computeOverlapInfo(compareSlots), [slotKey]);
+  const bestCallInfo = useMemo(() => computeBestCallTime(compareSlots), [slotKey]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
