@@ -635,6 +635,8 @@ export function TimezoneMap() {
     );
   }, []);
 
+  const handlePopupClose = useCallback(() => setPopupInfo(null), []);
+
   const handleCountryClick = useCallback((info: CountryClickInfo) => {
     if (!info) return;
     // Skip if a city marker was just clicked (both fire on the same click)
@@ -846,7 +848,7 @@ export function TimezoneMap() {
       </div>
 
       {/* Unified popup (city or country click) */}
-      <UnifiedPopup info={popupInfo} onClose={() => setPopupInfo(null)} onCompareAdd={handleCompareAdd} />
+      <UnifiedPopup info={popupInfo} onClose={handlePopupClose} onCompareAdd={handleCompareAdd} />
 
       {/* Footer credits */}
       <div className="absolute bottom-[4.5rem] sm:bottom-24 left-2 z-20 pointer-events-auto rounded-md bg-background/60 backdrop-blur-sm px-2 py-1 flex items-center gap-2 text-[11px] text-muted-foreground/70 hover:text-muted-foreground transition-colors">

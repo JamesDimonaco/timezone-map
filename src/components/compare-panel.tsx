@@ -500,8 +500,8 @@ export function ComparePanel({
     ? `${pinnedTime.hour % 12 || 12}:${pinnedTime.minute.toString().padStart(2, "0")} ${pinnedTime.hour >= 12 ? "PM" : "AM"}`
     : "";
 
-  // Only recompute when slots change, not on every tick
-  const slotKey = compareSlots.map((s) => s.city.timezone).join(",");
+  // Only recompute when slots change (timezone, label, or city name), not on every tick
+  const slotKey = compareSlots.map((s) => `${s.city.timezone}:${s.city.name}:${s.label ?? ""}`).join(",");
   const overlapInfo = useMemo(() => computeOverlapInfo(compareSlots), [slotKey]);
   const bestCallInfo = useMemo(() => computeBestCallTime(compareSlots), [slotKey]);
 
