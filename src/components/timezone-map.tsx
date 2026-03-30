@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import {
   Map,
   MapMarker,
@@ -97,6 +97,17 @@ function TimezoneZoneLabels({
     };
   }, [map, isLoaded, updatePositions]);
 
+  // Pre-compute label times — only recalculate every 10s (minute display doesn't need 1s updates)
+  const labelTimesRef = useRef<string[]>(timezoneZoneLabels.map((z) => formatTimeInTimezone(z.timezone)));
+  useEffect(() => {
+    const update = () => {
+      labelTimesRef.current = timezoneZoneLabels.map((z) => formatTimeInTimezone(z.timezone));
+    };
+    update();
+    const interval = setInterval(update, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Calculate the midnight line position (where local time = 00:00)
   const [midnightPositions, setMidnightPositions] = useState<number[]>([]);
   const [midnightDates, setMidnightDates] = useState<{
@@ -145,7 +156,7 @@ function TimezoneZoneLabels({
   useEffect(() => {
     if (!map || !isLoaded) return;
     updateMidnight();
-    const interval = setInterval(updateMidnight, 1000);
+    const interval = setInterval(updateMidnight, 10000);
     map.on("move", updateMidnight);
     map.on("zoom", updateMidnight);
     map.on("resize", updateMidnight);
@@ -195,7 +206,7 @@ function TimezoneZoneLabels({
 
         const zone = timezoneZoneLabels[pos.zoneIndex];
         const color = timezoneColors[zone.utcOffset] || "#94a3b8";
-        const time = formatTimeInTimezone(zone.timezone);
+        const time = labelTimesRef.current[pos.zoneIndex];
         const offsetLabel =
           zone.utcOffset === "UTC+0"
             ? "UTC"
@@ -247,7 +258,7 @@ function TimezoneZoneLabels({
 }
 
 // Floating tooltip for timezone hover
-function TzTooltip({ info }: { info: TzHoverInfo }) {
+const TzTooltip = memo(function TzTooltip({ info }: { info: TzHoverInfo }) {
   if (!info) return null;
 
   const time = formatTimeInTimezone(
@@ -284,7 +295,7 @@ function TzTooltip({ info }: { info: TzHoverInfo }) {
       </div>
     </div>
   );
-}
+});
 
 // Unified popup info type
 type PopupInfo = {
@@ -297,7 +308,7 @@ type PopupInfo = {
 } | null;
 
 // Draggable unified popup card
-function UnifiedPopup({
+const UnifiedPopup = memo(function UnifiedPopup({
   info,
   onClose,
   onCompareAdd,
@@ -457,7 +468,7 @@ function UnifiedPopup({
       </Card>
     </div>
   );
-}
+});
 
 export function TimezoneMap() {
   const posthog = usePostHog();
