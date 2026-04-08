@@ -363,7 +363,7 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
                   buildOpacityExpr(tzColor)
                 );
                 onTzHoverRef.current?.(info);
-              }, 500);
+              }, 350);
             }
             // If same zone (tzColor === pendingTzColorRef.current), do nothing — let timer continue
           } else {
