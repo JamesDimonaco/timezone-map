@@ -125,6 +125,7 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
   const hoveredCountryIdRef = useRef<number | null>(null);
   const externalColorRef = useRef<string | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTzColorRef = useRef<string | null>(null);
   const onTzHoverRef = useRef(onTzHover);
   const onCountryClickRef = useRef(onCountryClick);
   const onMapInteractRef = useRef(onMapInteract);
@@ -335,24 +336,50 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
             const utcOffset = tzFeatures[0].properties?.utc_offset as string;
             const tzid = tzFeatures[0].properties?.tzid as string;
 
-            if (tzColor && tzColor !== hoveredColorRef.current) {
-              hoveredColorRef.current = tzColor;
+            if (tzColor && tzColor !== pendingTzColorRef.current) {
+              // Moving to a new zone: clear pending timer and immediately un-highlight
+              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+              hoverTimerRef.current = null;
+              onTzHoverRef.current?.(null);
+
+              // Restore to external/default state (un-highlight the old zone)
+              hoveredColorRef.current = null;
               map.setPaintProperty(
                 TZ_FILL_LAYER,
                 "fill-opacity",
-                buildOpacityExpr(tzColor)
+                buildOpacityExpr(externalColorRef.current)
               );
-            }
 
-            if (tzColor) {
-              // Clear any pending tooltip — only show after mouse rests on a zone
-              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-              onTzHoverRef.current?.(null);
+              // Track which zone the pending timer is for
+              pendingTzColorRef.current = tzColor;
+
+              // Start debounce: after 500ms on the same zone, apply highlight + tooltip
               const info = { tzColor, utcOffset: utcOffset || "", tzid: tzid || "", point: { x: e.point.x, y: e.point.y } };
               hoverTimerRef.current = setTimeout(() => {
+                hoveredColorRef.current = tzColor;
+                map.setPaintProperty(
+                  TZ_FILL_LAYER,
+                  "fill-opacity",
+                  buildOpacityExpr(tzColor)
+                );
                 onTzHoverRef.current?.(info);
-              }, 800);
+              }, 500);
             }
+            // If same zone (tzColor === pendingTzColorRef.current), do nothing — let timer continue
+          } else {
+            // Mouse moved off all tz zones: clear pending timer and un-highlight
+            if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+            hoverTimerRef.current = null;
+            pendingTzColorRef.current = null;
+            if (hoveredColorRef.current) {
+              hoveredColorRef.current = null;
+              map.setPaintProperty(
+                TZ_FILL_LAYER,
+                "fill-opacity",
+                buildOpacityExpr(externalColorRef.current)
+              );
+            }
+            onTzHoverRef.current?.(null);
           }
 
           // Country hover (border highlight)
@@ -377,6 +404,10 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
         };
 
         const handleMouseLeave = () => {
+          // Clear any pending debounce timer
+          if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+          hoverTimerRef.current = null;
+          pendingTzColorRef.current = null;
           hoveredColorRef.current = null;
           // Restore external highlight if set, otherwise clear
           map.setPaintProperty(
@@ -386,7 +417,6 @@ export function CountryTimezoneLayer({ onTzHover, onCountryClick, highlightColor
           );
           clearCountryHighlight();
           map.getCanvas().style.cursor = "";
-          if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
           onTzHoverRef.current?.(null);
         };
 
