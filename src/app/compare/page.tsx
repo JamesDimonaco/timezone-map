@@ -6,6 +6,7 @@ import {
   canonicalComparisonSlug,
 } from "@/lib/slugs";
 import { timezoneCities, countryFlag } from "@/lib/timezones";
+import { AdBanner } from "@/components/ad-banner";
 
 export const metadata: Metadata = {
   title:
@@ -201,6 +202,9 @@ export default function ComparePage() {
             })}
           </div>
         </div>
+
+        {/* Ad */}
+        <AdBanner slot="auto" className="mb-12" />
 
         {/* Features */}
         <div className="mb-12">
