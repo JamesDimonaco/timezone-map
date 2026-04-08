@@ -8,6 +8,7 @@ import {
 } from "@/lib/slugs";
 import { TimeComparisonDisplay } from "@/components/time-comparison-display";
 import { TimeDifferenceCard } from "@/components/time-difference-card";
+import { AdBanner } from "@/components/ad-banner";
 
 export function ComparisonPage({
   cityA,
@@ -195,6 +196,9 @@ export function ComparisonPage({
             <div className="text-xs text-muted-foreground">View city page</div>
           </Link>
         </div>
+
+        {/* Ad */}
+        <AdBanner slot="auto" className="mt-10" />
 
         {/* More comparisons */}
         <div className="mt-10">

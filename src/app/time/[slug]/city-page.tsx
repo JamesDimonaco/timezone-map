@@ -7,6 +7,7 @@ import {
 } from "@/lib/timezones";
 import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
+import { AdBanner } from "@/components/ad-banner";
 
 export function CityPage({
   city,
@@ -157,6 +158,9 @@ export function CityPage({
             View on map
           </Link>
         </div>
+
+        {/* Ad */}
+        <AdBanner slot="auto" className="mb-10" />
 
         {/* Related cities */}
         {relatedCities.length > 0 && (
