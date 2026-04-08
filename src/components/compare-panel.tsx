@@ -533,6 +533,7 @@ export function ComparePanel({
             onClick={handleCopyLink}
             className="rounded-md p-1 hover:bg-muted transition-colors"
             title="Copy share link"
+            aria-label="Copy share link"
           >
             {showCopied ? (
               <Check className="size-3.5 text-emerald-500" />
@@ -543,6 +544,7 @@ export function ComparePanel({
           <button
             onClick={onClose}
             className="rounded-md p-0.5 hover:bg-muted transition-colors"
+            aria-label="Close compare panel"
           >
             <X className="size-4 text-muted-foreground" />
           </button>
@@ -591,6 +593,7 @@ export function ComparePanel({
                   <button
                     onClick={() => { setEditingSlot(null); onRemove(i); }}
                     className="rounded p-0.5 hover:bg-muted transition-colors shrink-0"
+                    aria-label={`Remove ${city.name}`}
                   >
                     <X className="size-3 text-muted-foreground" />
                   </button>

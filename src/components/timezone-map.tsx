@@ -390,6 +390,7 @@ const UnifiedPopup = memo(function UnifiedPopup({
             <button
               onClick={onClose}
               className="rounded-md p-0.5 hover:bg-muted transition-colors"
+              aria-label="Close"
             >
               <X className="size-3.5 text-muted-foreground" />
             </button>
@@ -886,6 +887,7 @@ export function TimezoneMap() {
             onClick={() => setCompareOpen(!compareOpen)}
             className={`flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors ${compareOpen ? "ring-2 ring-primary/50" : ""}`}
             title="Compare times"
+            aria-label="Compare times"
           >
             <GitCompareArrows className="size-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -901,6 +903,7 @@ export function TimezoneMap() {
             }}
             className="flex items-center gap-1.5 rounded-xl border bg-background/90 backdrop-blur-md shadow-lg px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm hover:bg-muted/50 transition-colors"
             title={showCities ? "Hide pins" : "Show pins"}
+            aria-label={showCities ? "Hide city pins" : "Show city pins"}
           >
             {showCities ? (
               <Eye className="size-4 text-muted-foreground" />
@@ -934,6 +937,7 @@ export function TimezoneMap() {
                     setSearchOpen(false);
                   }}
                   className="mr-2 rounded p-0.5 hover:bg-muted"
+                  aria-label="Clear search"
                 >
                   <X className="size-3.5 text-muted-foreground" />
                 </button>

@@ -2,20 +2,8 @@
 
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react";
-import { useEffect, Suspense } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-
-if (
-  typeof window !== "undefined" &&
-  process.env.NEXT_PUBLIC_POSTHOG_KEY
-) {
-  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
-    capture_pageview: false, // we capture manually below
-    capture_pageleave: true,
-    persistence: "localStorage+cookie",
-  });
-}
 
 function PostHogPageView() {
   const pathname = usePathname();
@@ -36,6 +24,20 @@ function PostHogPageView() {
 }
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  const initRef = useRef(false);
+
+  useEffect(() => {
+    if (!initRef.current && process.env.NEXT_PUBLIC_POSTHOG_KEY && !posthog.__loaded) {
+      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+        capture_pageview: false, // we capture manually below
+        capture_pageleave: true,
+        persistence: "localStorage+cookie",
+      });
+      initRef.current = true;
+    }
+  }, []);
+
   return (
     <PHProvider client={posthog}>
       <Suspense fallback={null}>
