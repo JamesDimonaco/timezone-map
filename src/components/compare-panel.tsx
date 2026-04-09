@@ -22,9 +22,11 @@ type Props = {
   onRemove: (index: number) => void;
   onLabelChange: (index: number, label: string) => void;
   onClose: () => void;
+  pinnedTime: PinnedTime | null;
+  onPinChange: (pin: PinnedTime | null) => void;
 };
 
-type PinnedTime = {
+export type PinnedTime = {
   cityKey: string; // unique: "name|timezone"
   cityName: string; // display name
   hour: number; // 0-23
@@ -467,11 +469,12 @@ export function ComparePanel({
   onRemove,
   onLabelChange,
   onClose,
+  pinnedTime,
+  onPinChange,
 }: Props) {
   const posthog = usePostHog();
   const [, setTick] = useState(0);
   const [showCopied, setShowCopied] = useState(false);
-  const [pinnedTime, setPinnedTime] = useState<PinnedTime | null>(null);
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
   const [showOverlap, setShowOverlap] = useState(false);
 
@@ -484,10 +487,10 @@ export function ComparePanel({
   // Clear pin when pinned city is removed
   useEffect(() => {
     if (pinnedTime && !compareSlots.some((s) => `${s.city.name}|${s.city.timezone}` === pinnedTime.cityKey)) {
-      setPinnedTime(null);
+      onPinChange(null);
       setEditingSlot(null);
     }
-  }, [compareSlots, pinnedTime]);
+  }, [compareSlots, pinnedTime, onPinChange]);
 
   // Compute pinned date for time conversion
   const pinnedCity = pinnedTime
@@ -558,7 +561,7 @@ export function ComparePanel({
             {pinnedTimeStr} in {pinnedTime.cityName}
           </span>
           <button
-            onClick={() => { setPinnedTime(null); setEditingSlot(null); }}
+            onClick={() => { onPinChange(null); setEditingSlot(null); }}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <RotateCcw className="size-3" />
@@ -632,7 +635,7 @@ export function ComparePanel({
                       initialHour={pickerTime.hour}
                       initialMinute={pickerTime.minute}
                       onSet={(h, m) => {
-                        setPinnedTime({ cityKey, cityName: city.name, hour: h, minute: m });
+                        onPinChange({ cityKey, cityName: city.name, hour: h, minute: m });
                         setEditingSlot(null);
                       }}
                       onCancel={() => setEditingSlot(null)}

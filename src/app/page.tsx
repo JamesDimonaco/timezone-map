@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TimezoneMapLoader } from "@/components/timezone-map-loader";
+import { QuickConvert } from "@/components/quick-convert";
 
 export default function Home() {
   return (
@@ -11,6 +12,7 @@ export default function Home() {
         abbreviation.
       </p>
       <TimezoneMapLoader />
+      <QuickConvert />
       <footer className="fixed bottom-14 sm:bottom-16 left-0 right-0 z-50 pointer-events-none">
         <div className="flex justify-center">
           <nav className="pointer-events-auto inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border text-xs text-muted-foreground">
