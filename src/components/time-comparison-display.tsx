@@ -26,9 +26,10 @@ function getPinnedDate(
     minute: "numeric",
     hour12: false,
   }).formatToParts(now);
-  const currentHour = parseInt(
+  let currentHour = parseInt(
     parts.find((p) => p.type === "hour")?.value || "0",
   );
+  if (currentHour === 24) currentHour = 0;
   const currentMinute = parseInt(
     parts.find((p) => p.type === "minute")?.value || "0",
   );
@@ -101,7 +102,7 @@ export function TimeComparisonDisplay({
         }).formatToParts(pinnedDate);
         const hh = parts.find((p) => p.type === "hour")?.value ?? "00";
         const mm = parts.find((p) => p.type === "minute")?.value ?? "00";
-        url.searchParams.set("time", `${hh}:${mm}`);
+        url.searchParams.set("time", `${hh === "24" ? "00" : hh}:${mm}`);
         url.searchParams.set("from", pinnedSource.cityName);
       } else {
         url.searchParams.delete("time");
@@ -240,7 +241,7 @@ function ClockCell({
   }).formatToParts(currentDate);
   const hh = parts.find((p) => p.type === "hour")?.value ?? "00";
   const mm = parts.find((p) => p.type === "minute")?.value ?? "00";
-  const inputValue = `${hh}:${mm}`;
+  const inputValue = `${hh === "24" ? "00" : hh}:${mm}`;
 
   return (
     <div className="flex flex-col items-center gap-1">

@@ -108,11 +108,11 @@ export default function ComparePage() {
   };
 
   // Pre-compute comparison data for the client component
-  const comparisons: ComparisonItem[] = POPULAR_COMPARISONS.map(([a, b]) => ({
-    cityA: a,
-    cityB: b,
-    slug: getComparisonSlug(a, b),
-  }));
+  const comparisons: ComparisonItem[] = POPULAR_COMPARISONS.flatMap(([a, b]) => {
+    const slug = getComparisonSlug(a, b);
+    if (!slug) return [];
+    return [{ cityA: a, cityB: b, slug }];
+  });
 
   const cityItems: CityItem[] = TOP_CITIES.flatMap((name) => {
     const city = timezoneCities.find((c) => c.name === name);

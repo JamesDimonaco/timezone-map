@@ -488,7 +488,6 @@ export function ComparePanel({
   useEffect(() => {
     if (pinnedTime && !compareSlots.some((s) => `${s.city.name}|${s.city.timezone}` === pinnedTime.cityKey)) {
       onPinChange(null);
-      setEditingSlot(null);
     }
   }, [compareSlots, pinnedTime, onPinChange]);
 

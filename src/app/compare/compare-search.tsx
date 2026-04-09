@@ -53,6 +53,7 @@ export function CompareSearch({ comparisons, cities }: CompareSearchProps) {
             autoComplete="off"
             data-1p-ignore
             data-lpignore="true"
+            aria-label="Search cities or comparisons"
             placeholder="Filter cities or comparisons..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}

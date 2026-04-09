@@ -35,6 +35,9 @@ function parseTime(raw: string): { hour: number; minute: number } | null {
 
   if (minute < 0 || minute > 59) return null;
 
+  // Reject invalid 12-hour values like "13pm" or "0am"
+  if (ampm && (hour < 1 || hour > 12)) return null;
+
   if (ampm === "pm" && hour < 12) hour += 12;
   if (ampm === "am" && hour === 12) hour = 0;
 
@@ -162,9 +165,10 @@ function convertTime(
     minute: "numeric",
     hour12: false,
   }).formatToParts(now);
-  const currentH = parseInt(
+  let currentH = parseInt(
     parts.find((p) => p.type === "hour")?.value || "0"
   );
+  if (currentH === 24) currentH = 0;
   const currentM = parseInt(
     parts.find((p) => p.type === "minute")?.value || "0"
   );
@@ -316,11 +320,13 @@ export function QuickConvert() {
             </button>
           )}
         </div>
-        {result && (
-          <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1">
-            {result}
-          </div>
-        )}
+        <div aria-live="polite" aria-atomic="true" role="status">
+          {result && (
+            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1">
+              {result}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
