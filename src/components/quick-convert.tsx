@@ -287,7 +287,7 @@ export function QuickConvert() {
             data-1p-ignore
             data-lpignore="true"
             aria-label="Quick time converter"
-            placeholder="Try: 6pm London, London now, 3pm EST..."
+            placeholder="Try: 6pm London, Tokyo now, 3pm EST..."
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
