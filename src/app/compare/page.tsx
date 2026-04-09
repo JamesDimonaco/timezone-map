@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  HUB_CITY_NAMES,
   cityToSlug,
   canonicalComparisonSlug,
 } from "@/lib/slugs";
 import { timezoneCities, countryFlag } from "@/lib/timezones";
 import { AdBanner } from "@/components/ad-banner";
+import {
+  CompareSearch,
+  type ComparisonItem,
+  type CityItem,
+} from "./compare-search";
 
 export const metadata: Metadata = {
   title:
@@ -103,6 +107,19 @@ export default function ComparePage() {
     ],
   };
 
+  // Pre-compute comparison data for the client component
+  const comparisons: ComparisonItem[] = POPULAR_COMPARISONS.map(([a, b]) => ({
+    cityA: a,
+    cityB: b,
+    slug: getComparisonSlug(a, b),
+  }));
+
+  const cityItems: CityItem[] = TOP_CITIES.flatMap((name) => {
+    const city = timezoneCities.find((c) => c.name === name);
+    if (!city) return [];
+    return [{ name, flag: countryFlag(city.country), slug: cityToSlug(name) }];
+  });
+
   return (
     <main className="min-h-screen bg-background">
       <script
@@ -182,29 +199,11 @@ export default function ComparePage() {
           </div>
         </div>
 
-        {/* Popular comparisons */}
-        <div className="mb-12">
-          <h2 className="text-lg font-semibold mb-4">Popular comparisons</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {POPULAR_COMPARISONS.map(([a, b]) => {
-              const compSlug = getComparisonSlug(a, b);
-              return (
-                <Link
-                  key={compSlug}
-                  href={`/time/${compSlug}`}
-                  className="rounded-lg border bg-card p-3 text-center hover:bg-accent transition-colors"
-                >
-                  <div className="text-sm font-medium">
-                    {a} to {b}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        {/* Search + filtered sections (client component) */}
+        <CompareSearch comparisons={comparisons} cities={cityItems} />
 
         {/* Ad */}
-        <AdBanner slot="auto" className="mb-12" />
+        <AdBanner slot="auto" className="my-12" />
 
         {/* Features */}
         <div className="mb-12">
@@ -235,27 +234,6 @@ export default function ComparePage() {
                 Every comparison creates a unique URL you can share instantly.
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* Browse by city */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Browse by city</h2>
-          <div className="flex flex-wrap gap-2">
-            {TOP_CITIES.map((name) => {
-              const city = timezoneCities.find((c) => c.name === name);
-              if (!city) return null;
-              return (
-                <Link
-                  key={name}
-                  href={`/time/${cityToSlug(name)}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm hover:bg-accent transition-colors"
-                >
-                  <span>{countryFlag(city.country)}</span>
-                  {name}
-                </Link>
-              );
-            })}
           </div>
         </div>
       </div>
