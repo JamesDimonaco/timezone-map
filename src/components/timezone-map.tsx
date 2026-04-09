@@ -574,6 +574,10 @@ export function TimezoneMap() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
+    // Clean up map view params so they don't pollute share links
+    url.searchParams.delete("lat");
+    url.searchParams.delete("lng");
+    url.searchParams.delete("zoom");
     if (compareSlots.length > 0) {
       const param = compareSlots
         .map((s) => (s.label ? `${s.label}:${s.city.name}` : s.city.name))
