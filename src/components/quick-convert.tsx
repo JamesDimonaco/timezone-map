@@ -118,6 +118,31 @@ function parseQuery(input: string): ParsedQuery | null {
     }
   }
 
+  // Try: "London now" or "now London"
+  const nowMatch = trimmed.match(/^(.+?)\s+now$/i) || trimmed.match(/^now\s+(.+)$/i);
+  if (nowMatch) {
+    const city = resolveLocation(nowMatch[1]);
+    if (city) {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: city.timezone, hour: "numeric", minute: "numeric", hour12: false,
+      }).formatToParts(new Date());
+      const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
+      const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
+      return { hour: hour === 24 ? 0 : hour, minute, fromCity: city };
+    }
+  }
+
+  // Try: just a city name (e.g. "London") → treat as "now"
+  const city = resolveLocation(trimmed);
+  if (city) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: city.timezone, hour: "numeric", minute: "numeric", hour12: false,
+    }).formatToParts(new Date());
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
+    return { hour: hour === 24 ? 0 : hour, minute, fromCity: city };
+  }
+
   return null;
 }
 
@@ -262,7 +287,7 @@ export function QuickConvert() {
             data-1p-ignore
             data-lpignore="true"
             aria-label="Quick time converter"
-            placeholder="Try: 6pm London, 14:00 Tokyo, 3pm EST..."
+            placeholder="Try: 6pm London, London now, 3pm EST..."
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
