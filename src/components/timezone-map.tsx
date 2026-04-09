@@ -568,6 +568,26 @@ export function TimezoneMap() {
         }
       }
     }
+
+    // Auto-open city popup from ?city=CityName (from "View on map" links)
+    const cityParam = params.get("city");
+    if (cityParam) {
+      const city = timezoneCities.find(
+        (c) => c.name.toLowerCase() === cityParam.toLowerCase()
+      );
+      if (city) {
+        const utcKey = getUtcOffsetKey(city.timezone);
+        const color = timezoneColors[utcKey] || timezoneColors[city.utcOffset] || "#6366f1";
+        setPopupInfo({
+          countryName: city.country,
+          lngLat: { lng: city.lng, lat: city.lat },
+          tzid: city.timezone,
+          utcOffset: city.utcOffset,
+          tzColor: color,
+          city,
+        });
+      }
+    }
   }, []);
 
   // Update URL when compare slots or pinned time change
