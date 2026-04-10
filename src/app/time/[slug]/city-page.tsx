@@ -127,7 +127,7 @@ export function CityPage({
         {/* View on map CTA */}
         <div className="flex justify-center mb-12">
           <Link
-            href={`/?lat=${city.lat}&lng=${city.lng}&zoom=5`}
+            href={`/?lat=${city.lat}&lng=${city.lng}&zoom=5&city=${encodeURIComponent(city.name)}`}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-colors"
             style={{
               backgroundColor: color,

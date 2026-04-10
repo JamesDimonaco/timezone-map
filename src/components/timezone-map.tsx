@@ -32,7 +32,7 @@ import {
 import Link from "next/link";
 import { cityToSlug } from "@/lib/slugs";
 import { DayNightLayer } from "@/components/day-night-layer";
-import { ComparePanel } from "@/components/compare-panel";
+import { ComparePanel, type PinnedTime } from "@/components/compare-panel";
 import { usePresence } from "@/hooks/use-presence";
 import { LiveUsersLayer } from "@/components/live-users-layer";
 import { ActiveUsersBadge } from "@/components/active-users-badge";
@@ -500,6 +500,7 @@ export function TimezoneMap() {
   // Compare panel state
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([]);
+  const [pinnedTime, setPinnedTime] = useState<PinnedTime | null>(null);
 
   // Presence heartbeat
   usePresence(userLocation, userTimezone);
@@ -545,15 +546,59 @@ export function TimezoneMap() {
       if (matched.length > 0) {
         setCompareSlots(matched);
         setCompareOpen(true);
+
+        // Restore pinned time from URL
+        const timeParam = params.get("time");
+        const fromParam = params.get("from");
+        if (timeParam && fromParam) {
+          const [h, m] = timeParam.split(":").map(Number);
+          if (!isNaN(h) && !isNaN(m)) {
+            const fromCity = matched.find(
+              (s) => s.city.name.toLowerCase() === fromParam.toLowerCase()
+            );
+            if (fromCity) {
+              setPinnedTime({
+                cityKey: `${fromCity.city.name}|${fromCity.city.timezone}`,
+                cityName: fromCity.city.name,
+                hour: h,
+                minute: m,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Auto-open city popup from ?city=CityName (from "View on map" links)
+    const cityParam = params.get("city");
+    if (cityParam) {
+      const city = timezoneCities.find(
+        (c) => c.name.toLowerCase() === cityParam.toLowerCase()
+      );
+      if (city) {
+        const utcKey = getUtcOffsetKey(city.timezone);
+        const color = timezoneColors[utcKey] || timezoneColors[city.utcOffset] || "#6366f1";
+        setPopupInfo({
+          countryName: city.country,
+          lngLat: { lng: city.lng, lat: city.lat },
+          tzid: city.timezone,
+          utcOffset: city.utcOffset,
+          tzColor: color,
+          city,
+        });
       }
     }
   }, []);
 
-  // Update URL when compare slots change
+  // Update URL when compare slots or pinned time change
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (compareSlots.length > 0) {
+      // Clean map view params when sharing a comparison — they're noise in share links
+      url.searchParams.delete("lat");
+      url.searchParams.delete("lng");
+      url.searchParams.delete("zoom");
       const param = compareSlots
         .map((s) => (s.label ? `${s.label}:${s.city.name}` : s.city.name))
         .join(",");
@@ -561,8 +606,18 @@ export function TimezoneMap() {
     } else {
       url.searchParams.delete("compare");
     }
+    if (pinnedTime) {
+      url.searchParams.set(
+        "time",
+        `${pinnedTime.hour.toString().padStart(2, "0")}:${pinnedTime.minute.toString().padStart(2, "0")}`
+      );
+      url.searchParams.set("from", pinnedTime.cityName);
+    } else {
+      url.searchParams.delete("time");
+      url.searchParams.delete("from");
+    }
     window.history.replaceState({}, "", url.toString());
-  }, [compareSlots]);
+  }, [compareSlots, pinnedTime]);
 
   // Update clock every second
   useEffect(() => {
@@ -839,6 +894,8 @@ export function TimezoneMap() {
             onRemove={handleCompareRemove}
             onLabelChange={handleLabelChange}
             onClose={() => setCompareOpen(false)}
+            pinnedTime={pinnedTime}
+            onPinChange={setPinnedTime}
           />
         </div>
       )}
