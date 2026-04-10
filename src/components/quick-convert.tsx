@@ -256,6 +256,7 @@ export function QuickConvert() {
   );
 
   const handleClear = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setInput("");
     setResult(null);
     inputRef.current?.focus();
