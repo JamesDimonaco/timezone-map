@@ -6,6 +6,7 @@ import {
 } from "@/lib/slugs";
 import { timezoneCities, countryFlag } from "@/lib/timezones";
 import { AdBanner } from "@/components/ad-banner";
+import { SiteFooter } from "@/components/site-footer";
 import {
   CompareSearch,
   type ComparisonItem,
@@ -203,7 +204,7 @@ export default function ComparePage() {
         <CompareSearch comparisons={comparisons} cities={cityItems} />
 
         {/* Ad */}
-        <AdBanner slot="auto" className="my-12" />
+        <AdBanner className="my-12" />
 
         {/* Features */}
         <div className="mb-12">
@@ -237,6 +238,7 @@ export default function ComparePage() {
           </div>
         </div>
       </div>
+      <SiteFooter />
     </main>
   );
 }

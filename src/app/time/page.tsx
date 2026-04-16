@@ -8,6 +8,7 @@ import {
 import { cityToSlug } from "@/lib/slugs";
 import { CitySearch } from "./city-search";
 import { AdBanner } from "@/components/ad-banner";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "World City Times — Browse All Timezones & Cities",
@@ -100,7 +101,7 @@ export default function TimePage() {
         <CitySearch />
 
         {/* Ad */}
-        <AdBanner slot="auto" className="my-8" />
+        <AdBanner className="my-8" />
 
         {/* All cities grouped by UTC offset */}
         <div className="space-y-8">
@@ -134,6 +135,7 @@ export default function TimePage() {
           ))}
         </div>
       </div>
+      <SiteFooter />
     </main>
   );
 }

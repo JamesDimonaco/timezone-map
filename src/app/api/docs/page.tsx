@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   title: "Timezone API Documentation — Free Time & Compare API",
@@ -339,13 +340,8 @@ const cmp = await fetch(
         </section>
 
         {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground pt-6 border-t">
-          Part of{" "}
-          <Link href="/" className="underline hover:text-foreground transition-colors">
-            Timezones.live
-          </Link>
-        </div>
       </div>
+      <SiteFooter />
     </main>
   );
 }

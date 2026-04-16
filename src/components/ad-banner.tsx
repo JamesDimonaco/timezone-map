@@ -10,12 +10,12 @@ declare global {
 
 type AdFormat = "auto" | "horizontal" | "vertical" | "rectangle";
 
+const AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT ?? "";
+
 export function AdBanner({
-  slot,
   format = "auto",
   className = "",
 }: {
-  slot: string;
   format?: AdFormat;
   className?: string;
 }) {
@@ -23,7 +23,7 @@ export function AdBanner({
   const pushed = useRef(false);
 
   useEffect(() => {
-    if (pushed.current) return;
+    if (pushed.current || !AD_SLOT) return;
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
       pushed.current = true;
@@ -32,6 +32,8 @@ export function AdBanner({
     }
   }, []);
 
+  if (!AD_SLOT) return null;
+
   return (
     <div className={`overflow-hidden ${className}`}>
       <ins
@@ -39,7 +41,7 @@ export function AdBanner({
         className="adsbygoogle"
         style={{ display: "block" }}
         data-ad-client="ca-pub-4648706958423925"
-        data-ad-slot={slot}
+        data-ad-slot={AD_SLOT}
         data-ad-format={format}
         data-full-width-responsive="true"
       />

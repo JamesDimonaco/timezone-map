@@ -8,6 +8,7 @@ import {
 import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
 import { AdBanner } from "@/components/ad-banner";
+import { SiteFooter } from "@/components/site-footer";
 
 export function CityPage({
   city,
@@ -159,8 +160,32 @@ export function CityPage({
           </Link>
         </div>
 
+        {/* About this timezone */}
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-3">
+            About the {city.name} timezone
+          </h2>
+          <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
+            <p>
+              {city.name} is located in {city.country} and follows the{" "}
+              <strong className="text-foreground">{city.timezone}</strong>{" "}
+              timezone. The standard UTC offset is{" "}
+              <strong className="text-foreground">{city.utcOffset}</strong>,
+              though this may shift by one hour during daylight saving time
+              depending on local regulations.
+            </p>
+            <p>
+              The coordinates of {city.name} are {city.lat.toFixed(2)}°
+              {city.lat >= 0 ? "N" : "S"}, {Math.abs(city.lng).toFixed(2)}°
+              {city.lng >= 0 ? "E" : "W"}. You can view {city.name} on the
+              interactive map or compare its time with any other city using the
+              links below.
+            </p>
+          </div>
+        </section>
+
         {/* Ad */}
-        <AdBanner slot="auto" className="mb-10" />
+        <AdBanner className="mb-10" />
 
         {/* Related cities */}
         {relatedCities.length > 0 && (
@@ -203,6 +228,7 @@ export function CityPage({
           </div>
         )}
       </div>
+      <SiteFooter />
     </main>
   );
 }
