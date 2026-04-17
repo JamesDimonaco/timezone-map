@@ -9,6 +9,7 @@ import {
 import { TimeComparisonDisplay } from "@/components/time-comparison-display";
 import { TimeDifferenceCard } from "@/components/time-difference-card";
 import { AdBanner } from "@/components/ad-banner";
+import { SiteFooter } from "@/components/site-footer";
 
 export function ComparisonPage({
   cityA,
@@ -197,8 +198,35 @@ export function ComparisonPage({
           </Link>
         </div>
 
+        {/* About this comparison */}
+        <section className="mt-10 mb-8">
+          <h2 className="text-lg font-semibold mb-3">
+            {cityA.name} vs {cityB.name} timezone guide
+          </h2>
+          <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
+            <p>
+              {cityA.name} ({cityA.country}) uses the{" "}
+              <strong className="text-foreground">{cityA.timezone}</strong>{" "}
+              timezone at {cityA.utcOffset}, while {cityB.name} ({cityB.country}){" "}
+              uses{" "}
+              <strong className="text-foreground">{cityB.timezone}</strong>{" "}
+              at {cityB.utcOffset}.{" "}
+              {staticDiff !== 0
+                ? `This means ${staticAheadBehind} (based on standard offsets — the live difference above accounts for daylight saving time).`
+                : `Both cities share the same standard UTC offset, though daylight saving rules may cause a temporary difference during parts of the year.`}
+            </p>
+            <p>
+              When scheduling a call or meeting between {cityA.name} and{" "}
+              {cityB.name}, look for the overlapping work hours highlighted
+              above. The live clocks on this page update every second, and
+              the difference adjusts automatically when either city enters or
+              exits daylight saving time.
+            </p>
+          </div>
+        </section>
+
         {/* Ad */}
-        <AdBanner slot="auto" className="mt-10" />
+        <AdBanner className="mb-8" />
 
         {/* More comparisons */}
         <div className="mt-10">
@@ -231,6 +259,7 @@ export function ComparisonPage({
           </div>
         </div>
       </div>
+      <SiteFooter />
     </main>
   );
 }
