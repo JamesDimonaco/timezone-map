@@ -175,7 +175,7 @@ export function CityPage({
               depending on local regulations.
             </p>
             <p>
-              The coordinates of {city.name} are {city.lat.toFixed(2)}°
+              The coordinates of {city.name} are {Math.abs(city.lat).toFixed(2)}°
               {city.lat >= 0 ? "N" : "S"}, {Math.abs(city.lng).toFixed(2)}°
               {city.lng >= 0 ? "E" : "W"}. You can view {city.name} on the
               interactive map or compare its time with any other city using the

@@ -120,9 +120,10 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc pl-6 text-muted-foreground mt-2 space-y-1">
               <li>
-                <strong>Google Analytics</strong> — to understand how visitors
-                use the site (page views, session duration, general location).
-                Google Analytics uses cookies to collect this data anonymously.
+                <strong>PostHog</strong> — to understand how visitors use the
+                site (page views, session duration, feature usage). PostHog
+                may use cookies and sends event data to its servers for
+                analytics processing.
               </li>
               <li>
                 <strong>MapLibre GL</strong> — for rendering the interactive

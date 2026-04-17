@@ -154,7 +154,7 @@ export default function AboutPage() {
               Got a suggestion, found a bug, or just want to say hello? You can
               reach out via the project&apos;s{" "}
               <a
-                href="https://github.com/JamesDimonaco/time-map"
+                href="https://github.com/JamesDimonaco/timezone-map"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-foreground transition-colors"
