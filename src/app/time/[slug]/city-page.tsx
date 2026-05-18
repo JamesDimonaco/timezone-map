@@ -24,6 +24,8 @@ export function CityPage({
   const relatedCities = getRelatedCities(city);
   const popularComparisons = getPopularComparisons(city.name, 8);
 
+  const baseUrl = "https://timezones.live";
+
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -47,11 +49,68 @@ export function CityPage({
     ],
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Cities",
+        item: `${baseUrl}/time`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: city.name,
+        item: `${baseUrl}/time/${slug}`,
+      },
+    ],
+  };
+
+  const placeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "City",
+    name: city.name,
+    ...(typeof city.lat === "number" && typeof city.lng === "number"
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: city.lat,
+            longitude: city.lng,
+          },
+        }
+      : {}),
+    ...(city.country
+      ? {
+          containedInPlace: {
+            "@type": "Country",
+            name: city.country,
+          },
+        }
+      : {}),
+    url: `${baseUrl}/time/${slug}`,
+  };
+
   return (
     <main className="min-h-screen bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(placeJsonLd) }}
       />
 
       {/* Color accent bar */}
