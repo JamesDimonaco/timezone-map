@@ -189,9 +189,17 @@ function formatInputTime(hour: number, minute: number): string {
   return `${displayHour}:${displayMinute} ${period}`;
 }
 
+const PLACEHOLDER_EXAMPLES = [
+  "Try: 6pm London",
+  "Try: 3pm EST in Tokyo",
+  "Try: Tokyo now",
+  "Try: 14:00 Berlin",
+];
+
 export function QuickConvert() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<string | null>(null);
+  const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -268,6 +276,16 @@ export function QuickConvert() {
     };
   }, []);
 
+  useEffect(() => {
+    if (input) return;
+    let i = 0;
+    const id = setInterval(() => {
+      i = (i + 1) % PLACEHOLDER_EXAMPLES.length;
+      setPlaceholder(PLACEHOLDER_EXAMPLES[i]);
+    }, 3500);
+    return () => clearInterval(id);
+  }, [input]);
+
   return (
     <div className="fixed bottom-24 sm:bottom-28 left-0 right-0 z-20 pointer-events-none flex justify-center px-4">
       <div className="pointer-events-auto w-full max-w-[500px] bg-background/90 backdrop-blur-md rounded-xl border shadow-lg p-2">
@@ -292,7 +310,7 @@ export function QuickConvert() {
             data-1p-ignore
             data-lpignore="true"
             aria-label="Quick time converter"
-            placeholder="Try: 6pm London, Tokyo now, 3pm EST..."
+            placeholder={placeholder}
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}

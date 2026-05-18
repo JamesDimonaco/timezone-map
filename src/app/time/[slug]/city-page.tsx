@@ -7,6 +7,7 @@ import {
 } from "@/lib/timezones";
 import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
+import { CityCurrentTimeText } from "@/components/city-current-time-text";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -22,6 +23,8 @@ export function CityPage({
   const flag = countryFlag(city.country);
   const relatedCities = getRelatedCities(city);
   const popularComparisons = getPopularComparisons(city.name, 8);
+
+  const baseUrl = "https://timezones.live";
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -46,11 +49,68 @@ export function CityPage({
     ],
   };
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Cities",
+        item: `${baseUrl}/time`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: city.name,
+        item: `${baseUrl}/time/${slug}`,
+      },
+    ],
+  };
+
+  const placeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "City",
+    name: city.name,
+    ...(typeof city.lat === "number" && typeof city.lng === "number"
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: city.lat,
+            longitude: city.lng,
+          },
+        }
+      : {}),
+    ...(city.country
+      ? {
+          containedInPlace: {
+            "@type": "Country",
+            name: city.country,
+          },
+        }
+      : {}),
+    url: `${baseUrl}/time/${slug}`,
+  };
+
   return (
     <main className="min-h-screen bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(placeJsonLd) }}
       />
 
       {/* Color accent bar */}
@@ -84,7 +144,7 @@ export function CityPage({
         <div className="text-center mb-10">
           <div className="text-4xl mb-3">{flag}</div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
-            Current Time in {city.name}, {city.country}
+            What time is it in {city.name} right now?
           </h1>
         </div>
 
@@ -166,6 +226,7 @@ export function CityPage({
             About the {city.name} timezone
           </h2>
           <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
+            <CityCurrentTimeText city={city} />
             <p>
               {city.name} is located in {city.country} and follows the{" "}
               <strong className="text-foreground">{city.timezone}</strong>{" "}
