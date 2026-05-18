@@ -42,7 +42,7 @@ export function CityCurrentTimeText({
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000);
+    const interval = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(interval);
   }, []);
 

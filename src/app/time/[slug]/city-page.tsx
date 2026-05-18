@@ -228,9 +228,8 @@ export function CityPage({
           <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
             <CityCurrentTimeText city={city} />
             <p>
-              {city.name} is located in {city.country} and follows the{" "}
-              <strong className="text-foreground">{city.timezone}</strong>{" "}
-              timezone. The standard UTC offset is{" "}
+              {city.name} is located in {city.country}. The standard UTC offset
+              is{" "}
               <strong className="text-foreground">{city.utcOffset}</strong>,
               though this may shift by one hour during daylight saving time
               depending on local regulations.
