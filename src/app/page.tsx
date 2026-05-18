@@ -6,18 +6,14 @@ import { SiteFooter } from "@/components/site-footer";
 export default function Home() {
   return (
     <main>
-      <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-        <div className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 text-center">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground drop-shadow-md pointer-events-auto">
-            Timezones.live — Interactive World Timezone Map
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 drop-shadow-sm pointer-events-auto">
-            Explore every world timezone on an interactive map. Click any region
-            to see the current local time, UTC offset, and timezone
-            abbreviation. Convert times instantly with the search bar below.
-          </p>
-        </div>
-      </div>
+      <h1 className="sr-only">
+        Timezones.live — Interactive World Timezone Map
+      </h1>
+      <p className="sr-only">
+        Explore every world timezone on an interactive map. Click any region to
+        see the current local time, UTC offset, and timezone abbreviation.
+        Convert times instantly with the search bar below.
+      </p>
       <TimezoneMapLoader />
       <QuickConvert />
       <footer className="fixed bottom-14 sm:bottom-16 left-0 right-0 z-50 pointer-events-none">
