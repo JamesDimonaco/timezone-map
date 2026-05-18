@@ -8,8 +8,11 @@ import {
 import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
 import { CityCurrentTimeText } from "@/components/city-current-time-text";
+import { CityTodayBlock } from "@/components/city-today-block";
+import { CityDstBlock } from "@/components/city-dst-block";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
+import { getDstInfo } from "@/lib/dst";
 
 export function CityPage({
   city,
@@ -26,27 +29,82 @@ export function CityPage({
 
   const baseUrl = "https://timezones.live";
 
+  const faqCurrentYear = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: city.timezone,
+      year: "numeric",
+    }).format(new Date()),
+    10,
+  );
+  const faqDstInfo = getDstInfo(city.timezone, faqCurrentYear);
+  const springForward = faqDstInfo.transitions.find(
+    (t) => t.type === "spring-forward",
+  );
+  const fallBack = faqDstInfo.transitions.find((t) => t.type === "fall-back");
+  const formatFaqDate = (instant: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: city.timezone,
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }).format(instant);
+  const formatFaqTime = (instant: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: city.timezone,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(instant);
+
+  const faqEntries: { question: string; answer: string }[] = [
+    {
+      question: `What time is it in ${city.name} right now?`,
+      answer: `The current time in ${city.name}, ${city.country} can be seen at the top of this page. ${city.name} observes the ${city.timezone} timezone, with a standard UTC offset of ${city.utcOffset}.`,
+    },
+    {
+      question: `What timezone is ${city.name} in?`,
+      answer: `${city.name}, ${city.country} is in the ${city.timezone} timezone.`,
+    },
+    {
+      question: `What is the UTC offset for ${city.name}?`,
+      answer: `${city.name} has a standard UTC offset of ${city.utcOffset}.`,
+    },
+    {
+      question: `Does ${city.name} observe daylight saving time?`,
+      answer: faqDstInfo.observes
+        ? `Yes. ${city.name} observes daylight saving time, shifting its local clock by one hour twice a year.`
+        : `No. ${city.name} does not observe daylight saving time. Its local time stays at ${city.utcOffset} all year.`,
+    },
+    ...(springForward
+      ? [
+          {
+            question: `When does daylight saving time start in ${city.name} in ${faqCurrentYear}?`,
+            answer: `In ${faqCurrentYear}, ${city.name} springs forward on ${formatFaqDate(springForward.instant)} at ${formatFaqTime(springForward.instant)} local time.`,
+          },
+        ]
+      : []),
+    ...(fallBack
+      ? [
+          {
+            question: `When does daylight saving time end in ${city.name} in ${faqCurrentYear}?`,
+            answer: `In ${faqCurrentYear}, ${city.name} falls back on ${formatFaqDate(fallBack.instant)} at ${formatFaqTime(fallBack.instant)} local time.`,
+          },
+        ]
+      : []),
+  ];
+
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: `What timezone is ${city.name} in?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `${city.name}, ${city.country} is in the ${city.timezone} timezone.`,
-        },
+    mainEntity: faqEntries.map((e) => ({
+      "@type": "Question",
+      name: e.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: e.answer,
       },
-      {
-        "@type": "Question",
-        name: `What is the UTC offset for ${city.name}?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `${city.name} has a UTC offset of ${city.utcOffset}.`,
-        },
-      },
-    ],
+    })),
   };
 
   const breadcrumbJsonLd = {
@@ -228,21 +286,21 @@ export function CityPage({
           <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
             <CityCurrentTimeText city={city} />
             <p>
-              {city.name} is located in {city.country}. The standard UTC offset
-              is{" "}
-              <strong className="text-foreground">{city.utcOffset}</strong>,
-              though this may shift by one hour during daylight saving time
-              depending on local regulations.
-            </p>
-            <p>
-              The coordinates of {city.name} are {Math.abs(city.lat).toFixed(2)}°
+              {city.name} is located in {city.country} at{" "}
+              {Math.abs(city.lat).toFixed(2)}°
               {city.lat >= 0 ? "N" : "S"}, {Math.abs(city.lng).toFixed(2)}°
-              {city.lng >= 0 ? "E" : "W"}. You can view {city.name} on the
-              interactive map or compare its time with any other city using the
-              links below.
+              {city.lng >= 0 ? "E" : "W"}. View {city.name} on the interactive
+              map or compare its time with any other city using the links
+              below.
             </p>
           </div>
         </section>
+
+        {/* Today: sun times */}
+        <CityTodayBlock city={city} />
+
+        {/* DST schedule */}
+        <CityDstBlock city={city} />
 
         {/* Ad */}
         <AdBanner className="mb-10" />
