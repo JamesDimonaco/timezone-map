@@ -10,6 +10,8 @@ import { TimeDisplay } from "@/components/time-display";
 import { CityCurrentTimeText } from "@/components/city-current-time-text";
 import { CityTodayBlock } from "@/components/city-today-block";
 import { CityDstBlock } from "@/components/city-dst-block";
+import { CityHubsBlock } from "@/components/city-hubs-block";
+import { CityNearbyBlock } from "@/components/city-nearby-block";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 import { getDstInfo } from "@/lib/dst";
@@ -302,8 +304,14 @@ export function CityPage({
         {/* DST schedule */}
         <CityDstBlock city={city} />
 
+        {/* Working with major hubs */}
+        <CityHubsBlock city={city} />
+
         {/* Ad */}
         <AdBanner className="mb-10" />
+
+        {/* Nearby cities */}
+        <CityNearbyBlock city={city} />
 
         {/* Related cities */}
         {relatedCities.length > 0 && (
