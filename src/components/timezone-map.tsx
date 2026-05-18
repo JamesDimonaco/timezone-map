@@ -525,8 +525,11 @@ export function TimezoneMap() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const compareParam = params.get("compare");
-    if (compareParam) {
-      const entries = compareParam.split(",").map((e) => e.trim());
+    if (compareParam !== null) {
+      const entries = compareParam
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
       const matched: CompareSlot[] = [];
       for (const entry of entries) {
         const colonIdx = entry.indexOf(":");
@@ -543,9 +546,11 @@ export function TimezoneMap() {
         );
         if (city && matched.length < 5) matched.push({ city, label });
       }
+
+      setCompareOpen(true);
+
       if (matched.length > 0) {
         setCompareSlots(matched);
-        setCompareOpen(true);
 
         // Restore pinned time from URL
         const timeParam = params.get("time");
