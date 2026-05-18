@@ -19,6 +19,5 @@ export function haversineKm(
 
 export function formatDistanceKm(km: number): string {
   if (km < 10) return `${km.toFixed(1)} km`;
-  if (km < 1000) return `${Math.round(km)} km`;
-  return `${(km / 1000).toFixed(1)},000 km`;
+  return `${Math.round(km).toLocaleString("en-US")} km`;
 }
