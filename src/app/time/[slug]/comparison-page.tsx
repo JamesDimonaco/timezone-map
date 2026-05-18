@@ -11,6 +11,7 @@ import { TimeDifferenceCard } from "@/components/time-difference-card";
 import { ComparisonOverlapBlock } from "@/components/comparison-overlap-block";
 import { ComparisonDstBlock } from "@/components/comparison-dst-block";
 import { ComparisonDistanceBlock } from "@/components/comparison-distance-block";
+import { FaqList } from "@/components/faq-list";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 import { analyzeCityPair } from "@/lib/comparison";
@@ -343,6 +344,11 @@ export function ComparisonPage({
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* FAQ */}
+        <div className="mt-10">
+          <FaqList items={faqEntries} />
         </div>
       </div>
       <SiteFooter />
