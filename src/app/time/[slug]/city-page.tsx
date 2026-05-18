@@ -12,6 +12,7 @@ import { CityTodayBlock } from "@/components/city-today-block";
 import { CityDstBlock } from "@/components/city-dst-block";
 import { CityHubsBlock } from "@/components/city-hubs-block";
 import { CityNearbyBlock } from "@/components/city-nearby-block";
+import { FaqList } from "@/components/faq-list";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 import { getDstInfo } from "@/lib/dst";
@@ -353,6 +354,11 @@ export function CityPage({
             </div>
           </div>
         )}
+
+        {/* FAQ */}
+        <div className="mt-10">
+          <FaqList items={faqEntries} />
+        </div>
       </div>
       <SiteFooter />
     </main>
