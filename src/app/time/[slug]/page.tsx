@@ -17,6 +17,8 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+export const revalidate = 86400;
+
 export async function generateStaticParams() {
   const citySlugs = getAllCitySlugs().map((slug) => ({ slug }));
   const comparisonSlugs = generateComparisonSlugs().map((slug) => ({ slug }));
