@@ -10,7 +10,7 @@ const TimezoneMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-screen w-screen bg-[#0a0a1a] flex items-center justify-center">
+      <div className="h-full w-full bg-[#0a0a1a] flex items-center justify-center">
         <div className="text-muted-foreground text-sm animate-pulse">
           Loading map…
         </div>

@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const city = getCityBySlug(slug);
   if (city) {
     const flag = countryFlag(city.country);
-    const title = `What time is it in ${city.name}? — Timezones.live`;
+    const title = `What time is it in ${city.name}? Current Local Time`;
     const description = `${flag} What time is it in ${city.name} right now? Live clock for ${city.name}, ${city.country} (${city.utcOffset}). Compare with any city & find meeting overlap.`;
     return {
       title,

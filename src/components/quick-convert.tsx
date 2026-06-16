@@ -196,7 +196,11 @@ const PLACEHOLDER_EXAMPLES = [
   "Try: 14:00 Berlin",
 ];
 
-export function QuickConvert() {
+export function QuickConvert({
+  variant = "floating",
+}: {
+  variant?: "floating" | "inline";
+}) {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<string | null>(null);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
@@ -286,9 +290,23 @@ export function QuickConvert() {
     return () => clearInterval(id);
   }, [input]);
 
+  const isInline = variant === "inline";
+
   return (
-    <div className="fixed bottom-24 sm:bottom-28 left-0 right-0 z-20 pointer-events-none flex justify-center px-4">
-      <div className="pointer-events-auto w-full max-w-[500px] bg-background/90 backdrop-blur-md rounded-xl border shadow-lg p-2">
+    <div
+      className={
+        isInline
+          ? "w-full flex justify-center"
+          : "fixed bottom-24 sm:bottom-28 left-0 right-0 z-20 pointer-events-none flex justify-center px-4"
+      }
+    >
+      <div
+        className={
+          isInline
+            ? "w-full max-w-[520px] bg-card rounded-xl border shadow-sm p-2"
+            : "pointer-events-auto w-full max-w-[500px] bg-background/90 backdrop-blur-md rounded-xl border shadow-lg p-2"
+        }
+      >
         <div className="relative flex items-center gap-2">
           <svg
             className="absolute left-3 h-4 w-4 text-muted-foreground shrink-0"

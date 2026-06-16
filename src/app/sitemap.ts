@@ -47,13 +47,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...citySlugs.map((slug) => ({
       url: `${base}/time/${slug}`,
       lastModified: new Date(),
-      changeFrequency: "hourly" as const,
+      changeFrequency: "daily" as const,
       priority: 0.8,
     })),
     ...comparisonSlugs.map((slug) => ({
       url: `${base}/time/${slug}`,
       lastModified: new Date(),
-      changeFrequency: "hourly" as const,
+      changeFrequency: "weekly" as const,
       priority: 0.6,
     })),
   ];

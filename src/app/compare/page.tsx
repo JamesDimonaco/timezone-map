@@ -14,8 +14,7 @@ import {
 } from "./compare-search";
 
 export const metadata: Metadata = {
-  title:
-    "Team Time Zones — Compare Cities & Find Meeting Times | Timezones.live",
+  title: "Team Time Zones — Compare Cities & Find Meeting Times",
   description:
     "Free timezone converter for remote teams. Compare up to 5 cities, find overlapping work hours, and share a link with your team.",
   keywords:

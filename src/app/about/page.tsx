@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "About Timezones.live",
+  title: "About",
   description:
     "Learn about Timezones.live — a free interactive timezone map, time converter, and meeting planner for remote teams.",
   alternates: { canonical: "https://timezones.live/about" },

@@ -749,7 +749,7 @@ export function TimezoneMap() {
   const userDate = formatDateInTimezone(userTimezone);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       <Map
         center={initialMapView?.center ?? [20, 20]}
         zoom={initialMapView?.zoom ?? 2}
@@ -927,11 +927,11 @@ export function TimezoneMap() {
       <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-20 flex items-start justify-between gap-2 sm:gap-3 pointer-events-none">
         {/* Title + user time */}
         <div className="pointer-events-auto rounded-xl border bg-background/90 backdrop-blur-md shadow-lg p-2 sm:p-3">
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <Globe className="size-4 sm:size-5 text-primary" />
             <h2 className="text-sm sm:text-base font-bold">Time Map</h2>
           </div>
-          <div className="mt-1 sm:mt-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
+          <div className="sm:mt-1.5 flex items-center gap-1.5 text-xs sm:text-sm">
             <Clock className="size-3 sm:size-3.5 text-muted-foreground" />
             <span className="font-semibold tabular-nums">{userTime}</span>
             <span className="text-muted-foreground text-[10px] sm:text-xs hidden sm:inline">
@@ -952,7 +952,7 @@ export function TimezoneMap() {
             aria-label="Convert time across cities"
           >
             <Clock className="size-4" />
-            <span className="text-xs font-medium">
+            <span className="text-xs font-medium hidden sm:inline">
               Convert Time
             </span>
           </button>
