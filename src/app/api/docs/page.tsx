@@ -340,7 +340,7 @@ const cmp = await fetch(
           </div>
         </section>
 
-        <AdBanner className="mb-10" />
+        <AdBanner placement="static-pages" className="mb-10" />
 
         {/* Footer */}
       </div>

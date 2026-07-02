@@ -309,7 +309,7 @@ export function CityPage({
         <CityHubsBlock city={city} />
 
         {/* Ad */}
-        <AdBanner className="mb-10" />
+        <AdBanner placement="city-page" className="mb-10" />
 
         {/* Nearby cities */}
         <CityNearbyBlock city={city} />

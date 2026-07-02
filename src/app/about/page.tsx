@@ -167,7 +167,7 @@ export default function AboutPage() {
           </section>
         </div>
 
-        <AdBanner className="mt-12" />
+        <AdBanner placement="static-pages" className="mt-12" />
       </div>
       <SiteFooter />
     </main>

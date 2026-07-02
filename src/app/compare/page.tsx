@@ -203,7 +203,7 @@ export default function ComparePage() {
         <CompareSearch comparisons={comparisons} cities={cityItems} />
 
         {/* Ad */}
-        <AdBanner className="my-12" />
+        <AdBanner placement="compare-planner" className="my-12" />
 
         {/* Features */}
         <div className="mb-12">

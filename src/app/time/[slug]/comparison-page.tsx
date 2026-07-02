@@ -313,7 +313,7 @@ export function ComparisonPage({
         />
 
         {/* Ad */}
-        <AdBanner className="mb-8" />
+        <AdBanner placement="comparison-page" className="mb-8" />
 
         {/* More comparisons */}
         <div className="mt-10">

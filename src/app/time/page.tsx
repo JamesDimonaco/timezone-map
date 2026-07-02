@@ -101,7 +101,7 @@ export default function TimePage() {
         <CitySearch />
 
         {/* Ad */}
-        <AdBanner className="my-8" />
+        <AdBanner placement="static-pages" className="my-8" />
 
         {/* All cities grouped by UTC offset */}
         <div className="space-y-8">
