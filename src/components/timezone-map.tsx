@@ -23,7 +23,7 @@ import {
   type TimezoneCity,
   type CompareSlot,
 } from "@/lib/timezones";
-import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows, ExternalLink, GripHorizontal } from "lucide-react";
+import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows, ExternalLink, GripHorizontal, RotateCcw } from "lucide-react";
 import {
   CountryTimezoneLayer,
   type TzHoverInfo,
@@ -44,10 +44,13 @@ function TimezoneZoneLabels({
   highlightColor,
   onLabelHover,
   onLabelClick,
+  date,
 }: {
   highlightColor: string | null;
   onLabelHover?: (color: string | null) => void;
   onLabelClick?: (color: string) => void;
+  /** Viewed moment; null/undefined = live now */
+  date: Date | null;
 }) {
   const { map, isLoaded } = useMap();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,16 +100,23 @@ function TimezoneZoneLabels({
     };
   }, [map, isLoaded, updatePositions]);
 
-  // Pre-compute label times — only recalculate every 10s (minute display doesn't need 1s updates)
+  // Pre-compute label times — only recalculate every 10s (minute display doesn't need 1s updates).
+  // When scrubbing (date is non-null), bypass the throttle and compute directly in render
+  // so dragging the slider feels live.
   const labelTimesRef = useRef<string[]>(timezoneZoneLabels.map((z) => formatTimeInTimezone(z.timezone)));
   useEffect(() => {
+    if (date) return; // scrubbed — computed directly below instead
     const update = () => {
       labelTimesRef.current = timezoneZoneLabels.map((z) => formatTimeInTimezone(z.timezone));
     };
     update();
     const interval = setInterval(update, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [date]);
+
+  const labelTimes = date
+    ? timezoneZoneLabels.map((z) => formatTimeInTimezone(z.timezone, date))
+    : labelTimesRef.current;
 
   // Calculate the midnight line position (where local time = 00:00)
   const [midnightPositions, setMidnightPositions] = useState<number[]>([]);
@@ -115,9 +125,14 @@ function TimezoneZoneLabels({
     right: string;
   }>({ left: "", right: "" });
 
+  // Kept in a ref so `updateMidnight`'s identity stays stable across date changes
+  // (avoids re-subscribing map listeners / re-running the mount effect every scrub tick).
+  const dateRef = useRef(date);
+  dateRef.current = date;
+
   const updateMidnight = useCallback(() => {
     if (!map) return;
-    const now = new Date();
+    const now = dateRef.current ?? new Date();
     const utcH = now.getUTCHours();
     const utcM = now.getUTCMinutes();
     const utcS = now.getUTCSeconds();
@@ -168,6 +183,13 @@ function TimezoneZoneLabels({
     };
   }, [map, isLoaded, updateMidnight]);
 
+  // While scrubbing, recompute immediately on every date change so the amber
+  // midnight island tracks the slider live (the 10s interval above is too slow).
+  useEffect(() => {
+    if (!date) return;
+    updateMidnight();
+  }, [date, updateMidnight]);
+
   return (
     <div
       ref={containerRef}
@@ -206,7 +228,7 @@ function TimezoneZoneLabels({
 
         const zone = timezoneZoneLabels[pos.zoneIndex];
         const color = timezoneColors[zone.utcOffset] || "#94a3b8";
-        const time = labelTimesRef.current[pos.zoneIndex];
+        const time = labelTimes[pos.zoneIndex];
         const offsetLabel =
           zone.utcOffset === "UTC+0"
             ? "UTC"
@@ -258,14 +280,22 @@ function TimezoneZoneLabels({
 }
 
 // Floating tooltip for timezone hover
-const TzTooltip = memo(function TzTooltip({ info }: { info: TzHoverInfo }) {
+const TzTooltip = memo(function TzTooltip({
+  info,
+  viewedDate,
+}: {
+  info: TzHoverInfo;
+  /** Viewed moment; null = live now */
+  viewedDate: Date | null;
+}) {
   if (!info) return null;
 
   const time = formatTimeInTimezone(
     // Use a city timezone for the offset if possible, fall back to tzid
-    info.tzid || "UTC"
+    info.tzid || "UTC",
+    viewedDate ?? undefined
   );
-  const date = formatDateInTimezone(info.tzid || "UTC");
+  const date = formatDateInTimezone(info.tzid || "UTC", viewedDate ?? undefined);
 
   return (
     <div
@@ -312,10 +342,13 @@ const UnifiedPopup = memo(function UnifiedPopup({
   info,
   onClose,
   onCompareAdd,
+  viewedDate,
 }: {
   info: PopupInfo;
   onClose: () => void;
   onCompareAdd?: (city: TimezoneCity) => void;
+  /** Viewed moment; null = live now */
+  viewedDate: Date | null;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 0, y: 0 });
@@ -359,8 +392,8 @@ const UnifiedPopup = memo(function UnifiedPopup({
 
   const flag = countryFlag(info.countryName);
   const timezone = info.city?.timezone || info.tzid || "UTC";
-  const time = formatTimeInTimezone(timezone);
-  const date = formatDateInTimezone(timezone);
+  const time = formatTimeInTimezone(timezone, viewedDate ?? undefined);
+  const date = formatDateInTimezone(timezone, viewedDate ?? undefined);
   const regionName = info.tzid?.split("/").pop()?.replace(/_/g, " ") || "";
 
   return (
@@ -471,9 +504,94 @@ const UnifiedPopup = memo(function UnifiedPopup({
   );
 });
 
+// Scrub range: ±12h from now, in minute increments
+const SCRUB_MIN_MS = -12 * 60 * 60 * 1000;
+const SCRUB_MAX_MS = 12 * 60 * 60 * 1000;
+const SCRUB_STEP_MS = 5 * 60 * 1000;
+
+// Format a signed offset in ms as "+3h", "-45m", "+1h30m", "now"
+function formatOffsetDelta(offsetMs: number): string {
+  if (offsetMs === 0) return "now";
+  const sign = offsetMs > 0 ? "+" : "-";
+  const abs = Math.abs(offsetMs);
+  const hours = Math.floor(abs / (60 * 60 * 1000));
+  const minutes = Math.round((abs % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours === 0) return `${sign}${minutes}m`;
+  if (minutes === 0) return `${sign}${hours}h`;
+  return `${sign}${hours}h${minutes}m`;
+}
+
+// Thin scrub slider for viewing world time at an offset from now. Desktop-only —
+// mobile still honors a shared ?t= link, it just doesn't show the control.
+function TimeScrubControl({
+  offsetMs,
+  viewedDate,
+  onChange,
+  onReset,
+}: {
+  offsetMs: number | null;
+  viewedDate: Date;
+  onChange: (offsetMs: number) => void;
+  onReset: () => void;
+}) {
+  const isScrubbed = offsetMs !== null;
+  const deltaLabel = isScrubbed ? formatOffsetDelta(offsetMs) : "Live";
+  const viewedLabel = viewedDate.toLocaleString("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  return (
+    <div
+      className={`hidden sm:flex pointer-events-auto items-center gap-2.5 rounded-xl border shadow-lg px-3 py-2 backdrop-blur-md transition-colors animate-in slide-in-from-bottom-4 fade-in duration-200 motion-reduce:animate-none ${
+        isScrubbed
+          ? "bg-amber-500/10 border-amber-400/40"
+          : "bg-background/90"
+      }`}
+    >
+      <button
+        onClick={onReset}
+        disabled={!isScrubbed}
+        title="Reset to live time"
+        aria-label="Reset to live time"
+        className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors ${
+          isScrubbed
+            ? "text-amber-500 hover:bg-amber-500/15"
+            : "text-muted-foreground/60 cursor-default"
+        }`}
+      >
+        <RotateCcw className="size-3" />
+        Live
+      </button>
+
+      <input
+        type="range"
+        min={SCRUB_MIN_MS}
+        max={SCRUB_MAX_MS}
+        step={SCRUB_STEP_MS}
+        value={offsetMs ?? 0}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        aria-label="Scrub viewed time, plus or minus 12 hours from now"
+        className={`w-40 motion-reduce:transition-none ${
+          isScrubbed ? "accent-amber-400" : "accent-primary"
+        }`}
+      />
+
+      <span className="text-xs font-mono tabular-nums text-muted-foreground whitespace-nowrap min-w-[7.5rem] text-right">
+        {viewedLabel} &middot;{" "}
+        <span className={isScrubbed ? "text-amber-500 font-semibold" : ""}>
+          {deltaLabel}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export function TimezoneMap() {
   const posthog = usePostHog();
-  const [, setNow] = useState(new Date());
+  const [now, setNow] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showCities, setShowCities] = useState(true);
@@ -501,6 +619,20 @@ export function TimezoneMap() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [compareSlots, setCompareSlots] = useState<CompareSlot[]>([]);
   const [pinnedTime, setPinnedTime] = useState<PinnedTime | null>(null);
+
+  // Viewed-moment scrub state (?t=<offsetMs>). null = live now. Stored as an
+  // offset from `now` (not an absolute timestamp) so the clock keeps ticking
+  // under a fixed scrub position instead of freezing.
+  const [viewedOffsetMs, setViewedOffsetMs] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("t");
+    if (raw === null) return null;
+    const parsed = parseInt(raw, 10);
+    if (isNaN(parsed)) return null;
+    return Math.min(SCRUB_MAX_MS, Math.max(SCRUB_MIN_MS, parsed));
+  });
+  const viewedDate = viewedOffsetMs === null ? now : new Date(now.getTime() + viewedOffsetMs);
 
   // Presence heartbeat
   usePresence(userLocation, userTimezone);
@@ -595,7 +727,11 @@ export function TimezoneMap() {
     }
   }, []);
 
-  // Update URL when compare slots or pinned time change
+  // Update URL when compare slots, pinned time, or the viewed-moment scrub change.
+  // Note: `t` (this map's viewed-moment offset) and `time`/`from` (compare panel's
+  // pinned conversion) are intentionally distinct axes — one scrubs the whole map's
+  // "now", the other pins a single converted time within the compare panel. They
+  // don't interact and neither should clobber the other.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -621,8 +757,13 @@ export function TimezoneMap() {
       url.searchParams.delete("time");
       url.searchParams.delete("from");
     }
+    if (viewedOffsetMs !== null) {
+      url.searchParams.set("t", String(viewedOffsetMs));
+    } else {
+      url.searchParams.delete("t");
+    }
     window.history.replaceState({}, "", url.toString());
-  }, [compareSlots, pinnedTime]);
+  }, [compareSlots, pinnedTime, viewedOffsetMs]);
 
   // Update clock every second
   useEffect(() => {
@@ -745,8 +886,8 @@ export function TimezoneMap() {
   const effectiveLabelHighlight =
     labelHoverColor || lockedColor || (tzHover?.tzColor ?? null);
 
-  const userTime = formatTimeInTimezone(userTimezone);
-  const userDate = formatDateInTimezone(userTimezone);
+  const userTime = formatTimeInTimezone(userTimezone, viewedDate);
+  const userDate = formatDateInTimezone(userTimezone, viewedDate);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
@@ -774,7 +915,7 @@ export function TimezoneMap() {
         />
 
         {/* Day/night shadow overlay */}
-        <DayNightLayer />
+        <DayNightLayer date={viewedDate} />
 
         {/* Live users presence dots */}
         <LiveUsersLayer />
@@ -784,6 +925,7 @@ export function TimezoneMap() {
           highlightColor={effectiveLabelHighlight}
           onLabelHover={handleLabelHover}
           onLabelClick={handleLabelClick}
+          date={viewedOffsetMs === null ? null : viewedDate}
         />
 
         {/* User location marker */}
@@ -907,11 +1049,27 @@ export function TimezoneMap() {
 
       {/* Timezone hover tooltip (hidden on touch devices) */}
       <div className="hidden sm:block">
-        <TzTooltip info={tzHover} />
+        <TzTooltip info={tzHover} viewedDate={viewedOffsetMs === null ? null : viewedDate} />
       </div>
 
       {/* Unified popup (city or country click) */}
-      <UnifiedPopup info={popupInfo} onClose={handlePopupClose} onCompareAdd={handleCompareAdd} />
+      <UnifiedPopup
+        info={popupInfo}
+        onClose={handlePopupClose}
+        onCompareAdd={handleCompareAdd}
+        viewedDate={viewedOffsetMs === null ? null : viewedDate}
+      />
+
+      {/* Time scrub control — view world time at an offset from now (desktop-only).
+          Sits above the quick-convert bar (bottom-24 sm:bottom-28) so the two never overlap. */}
+      <div className="absolute bottom-40 sm:bottom-44 left-0 right-0 z-30 flex justify-center pointer-events-none">
+        <TimeScrubControl
+          offsetMs={viewedOffsetMs}
+          viewedDate={viewedDate}
+          onChange={setViewedOffsetMs}
+          onReset={() => setViewedOffsetMs(null)}
+        />
+      </div>
 
       {/* Footer credits */}
       <div className="absolute bottom-[4.5rem] sm:bottom-24 left-2 z-20 pointer-events-auto rounded-md bg-background/60 backdrop-blur-sm px-2 py-1 flex items-center gap-2 text-[11px] text-muted-foreground/70 hover:text-muted-foreground transition-colors">

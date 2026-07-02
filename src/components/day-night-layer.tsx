@@ -64,19 +64,47 @@ function buildNightPolygon(date: Date): GeoJSON.Feature {
   };
 }
 
-export function DayNightLayer() {
+export function DayNightLayer({ date }: { date?: Date }) {
   const { map, isLoaded } = useMap();
   const addedRef = useRef(false);
+  // rAF handle so rapid date changes (slider drag) only rebuild once per frame
+  const rafRef = useRef<number | null>(null);
+  // Last minute we rebuilt for, to avoid per-second-tick jitter while scrubbed
+  const lastMinuteRef = useRef<number | null>(null);
+  // Always holds the latest `date` prop. `updateNight`/`scheduleUpdate` read
+  // through this ref (instead of closing over `date` directly) so a rAF that's
+  // already in flight always resolves against the freshest value — otherwise a
+  // burst of updates (e.g. clicking "Live" right after a drag) could have its
+  // second, correct call coalesced away by the first call's now-stale rAF.
+  const dateRef = useRef(date);
+  useEffect(() => {
+    dateRef.current = date;
+  }, [date]);
 
   const updateNight = useCallback(() => {
     if (!map) return;
     const source = map.getSource(NIGHT_SOURCE) as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
+    const d = dateRef.current ?? new Date();
+    const minute = Math.floor(d.getTime() / 60000);
+    if (lastMinuteRef.current === minute) return;
+    lastMinuteRef.current = minute;
     source.setData({
       type: "FeatureCollection",
-      features: [buildNightPolygon(new Date())],
+      features: [buildNightPolygon(d)],
     });
   }, [map]);
+
+  // rAF-throttled trigger — coalesces bursts of updates (e.g. slider drag) into
+  // one rebuild per animation frame instead of rebuilding the 180-point polygon
+  // on every intermediate value.
+  const scheduleUpdate = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateNight();
+    });
+  }, [updateNight]);
 
   useEffect(() => {
     if (!map || !isLoaded || addedRef.current) return;
@@ -92,11 +120,14 @@ export function DayNightLayer() {
         return;
       }
 
+      const initialDate = dateRef.current ?? new Date();
+      lastMinuteRef.current = Math.floor(initialDate.getTime() / 60000);
+
       map.addSource(NIGHT_SOURCE, {
         type: "geojson",
         data: {
           type: "FeatureCollection",
-          features: [buildNightPolygon(new Date())],
+          features: [buildNightPolygon(initialDate)],
         },
       });
 
@@ -123,11 +154,15 @@ export function DayNightLayer() {
 
     tryAdd();
 
-    // Update every 60 seconds
-    const interval = setInterval(updateNight, 60000);
+    // Update every 60 seconds when live (no fixed date supplied)
+    const interval = setInterval(scheduleUpdate, 60000);
 
     return () => {
       clearInterval(interval);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       try {
         if (map.getLayer(NIGHT_LAYER)) map.removeLayer(NIGHT_LAYER);
         if (map.getSource(NIGHT_SOURCE)) map.removeSource(NIGHT_SOURCE);
@@ -136,7 +171,13 @@ export function DayNightLayer() {
         // ignore cleanup errors
       }
     };
-  }, [map, isLoaded, updateNight]);
+  }, [map, isLoaded, scheduleUpdate]);
+
+  // Rebuild the polygon whenever the viewed date changes (e.g. scrub slider drag)
+  useEffect(() => {
+    if (!addedRef.current) return;
+    scheduleUpdate();
+  }, [date, scheduleUpdate]);
 
   return null;
 }
