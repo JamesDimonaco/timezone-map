@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://timezones.live"),
   title: {
-    default: "Timezones.live — Interactive World Timezone Map",
+    default: "Live World Time Zone Map — Interactive World Clock | Timezones.live",
     template: "%s | Timezones.live",
   },
   description:
-    "Explore every world timezone on a beautiful interactive map. Click any region to see the current local time, UTC offset, and timezone abbreviation — no sign-up required.",
+    "See live local times across every time zone on a beautiful interactive world map. Watch day and night move in real time, compare cities side by side, and convert any time instantly — free, no sign-up.",
   keywords: [
     "world timezone map",
     "interactive timezone map",
@@ -43,17 +43,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "https://timezones.live",
-    title: "Timezones.live — Interactive World Timezone Map",
+    title: "Live World Time Zone Map — Interactive World Clock",
     description:
-      "Explore every world timezone on a beautiful interactive map. Click any region to see the current local time, UTC offset, and timezone abbreviation.",
+      "See live local times across every time zone on a beautiful interactive world map. Watch day and night move in real time and compare cities side by side.",
     siteName: "Timezones.live",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Timezones.live — Interactive World Timezone Map",
+    title: "Live World Time Zone Map — Interactive World Clock",
     description:
-      "Explore every world timezone on a beautiful interactive map. Click any region to see the current local time and UTC offset.",
+      "See live local times across every time zone on a beautiful interactive world map. Watch day and night move in real time and compare cities side by side.",
   },
   alternates: {
     canonical: "https://timezones.live",
