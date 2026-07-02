@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
@@ -338,6 +339,8 @@ const cmp = await fetch(
             </div>
           </div>
         </section>
+
+        <AdBanner className="mb-10" />
 
         {/* Footer */}
       </div>

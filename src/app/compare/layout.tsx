@@ -1,4 +1,4 @@
-import Script from "next/script";
+import { AdSenseScript } from "@/components/adsense-script";
 
 export default function CompareLayout({
   children,
@@ -7,12 +7,7 @@ export default function CompareLayout({
 }) {
   return (
     <>
-      <Script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4648706958423925"
-        crossOrigin="anonymous"
-        strategy="afterInteractive"
-      />
+      <AdSenseScript />
       {children}
     </>
   );

@@ -1,6 +1,6 @@
 import { AdSenseScript } from "@/components/adsense-script";
 
-export default function TimeLayout({
+export default function PrivacyLayout({
   children,
 }: {
   children: React.ReactNode;
