@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Clock, Globe, Map as MapIcon, ArrowRight } from "lucide-react";
 import { TimezoneMapLoader } from "@/components/timezone-map-loader";
-import { QuickConvert } from "@/components/quick-convert";
+import { QuickConvert, QUICK_CONVERT_TRY_EVENT } from "@/components/quick-convert";
 import { SiteFooter } from "@/components/site-footer";
+import { WhatsNew } from "@/components/whats-new";
 import { cn } from "@/lib/utils";
 import {
   timezoneCities,
@@ -223,8 +224,20 @@ export function HomeTabs() {
 
   const openMap = useCallback(() => setView("map"), []);
 
+  const handleTryExample = useCallback((query: string) => {
+    // The converter lives on the map on desktop and on the Convert tab on
+    // mobile — make sure one is mounted, then hand it the example.
+    if (window.innerWidth < 640) setView("convert");
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent(QUICK_CONVERT_TRY_EVENT, { detail: query })
+      );
+    }, 120);
+  }, []);
+
   return (
     <div className="relative w-full">
+      <WhatsNew onTry={handleTryExample} />
       {/* Mobile top strip */}
       <header className="sm:hidden sticky top-0 z-40 flex h-12 items-center justify-between border-b bg-background/95 backdrop-blur-md px-3">
         <span className="flex items-center gap-1.5 text-sm font-bold">

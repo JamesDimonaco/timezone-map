@@ -264,6 +264,13 @@ const PLACEHOLDER_EXAMPLES = [
 // Targets for a bare-time query like "5pm" — a small world snapshot.
 const WORLD_SNAPSHOT_CITIES = ["London", "New York", "Tokyo"];
 
+// Clickable suggestions shown while the input is focused and empty.
+const EXAMPLE_CHIPS = ["6pm London", "5pm to Tokyo", "9am to London, Tokyo"];
+
+/** CustomEvent name for dropping an example query into the converter
+    (dispatched by the What's New dialog). detail = the query string. */
+export const QUICK_CONVERT_TRY_EVENT = "quick-convert:try";
+
 export function QuickConvert({
   variant = "floating",
 }: {
@@ -273,6 +280,7 @@ export function QuickConvert({
 }) {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<string[] | null>(null);
+  const [focused, setFocused] = useState(false);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -369,6 +377,26 @@ export function QuickConvert({
     inputRef.current?.focus();
   }, []);
 
+  const tryExample = useCallback(
+    (query: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setInput(query);
+      processQuery(query);
+      inputRef.current?.focus();
+    },
+    [processQuery]
+  );
+
+  // Accept example queries from elsewhere in the app (What's New dialog).
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const query = (e as CustomEvent<string>).detail;
+      if (typeof query === "string") tryExample(query);
+    };
+    window.addEventListener(QUICK_CONVERT_TRY_EVENT, handler);
+    return () => window.removeEventListener(QUICK_CONVERT_TRY_EVENT, handler);
+  }, [tryExample]);
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -427,6 +455,8 @@ export function QuickConvert({
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             className="w-full bg-transparent pl-9 pr-8 py-1.5 text-sm outline-none placeholder:text-muted-foreground/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
           />
           {input && (
@@ -452,6 +482,25 @@ export function QuickConvert({
             </button>
           )}
         </div>
+        {focused && !input && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1.5 pt-1.5 border-t border-border/50 mt-1">
+            <span className="text-xs text-muted-foreground/60">Try:</span>
+            {EXAMPLE_CHIPS.map((example) => (
+              <button
+                key={example}
+                type="button"
+                // Fill before blur fires so the chip row doesn't vanish mid-click
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  tryExample(example);
+                }}
+                className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
         <div aria-live="polite" aria-atomic="true" role="status">
           {result && (
             <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1 space-y-0.5">
