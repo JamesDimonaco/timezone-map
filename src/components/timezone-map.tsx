@@ -24,6 +24,7 @@ import {
   type CompareSlot,
 } from "@/lib/timezones";
 import { Clock, MapPin, Globe, Search, X, Eye, EyeOff, GitCompareArrows, ExternalLink, GripHorizontal, RotateCcw } from "lucide-react";
+import { QuickConvert } from "@/components/quick-convert";
 import {
   CountryTimezoneLayer,
   type TzHoverInfo,
@@ -521,6 +522,10 @@ function formatOffsetDelta(offsetMs: number): string {
   return `${sign}${hours}h${minutes}m`;
 }
 
+// The parent stack re-renders every second with the map's clock; the converter
+// has no props that change, so memo keeps it out of that tick.
+const MemoizedQuickConvert = memo(QuickConvert);
+
 // Thin scrub slider for viewing world time at an offset from now. Desktop-only —
 // mobile still honors a shared ?t= link, it just doesn't show the control.
 function TimeScrubControl({
@@ -545,7 +550,7 @@ function TimeScrubControl({
 
   return (
     <div
-      className={`hidden sm:flex pointer-events-auto items-center gap-2.5 rounded-xl border shadow-lg px-3 py-2 backdrop-blur-md transition-colors animate-in slide-in-from-bottom-4 fade-in duration-200 motion-reduce:animate-none ${
+      className={`flex pointer-events-auto items-center gap-2.5 rounded-xl border shadow-lg px-3 py-2 backdrop-blur-md transition-colors animate-in slide-in-from-bottom-4 fade-in duration-200 motion-reduce:animate-none ${
         isScrubbed
           ? "bg-amber-500/10 border-amber-400/40"
           : "bg-background/90"
@@ -1060,15 +1065,17 @@ export function TimezoneMap() {
         viewedDate={viewedOffsetMs === null ? null : viewedDate}
       />
 
-      {/* Time scrub control — view world time at an offset from now (desktop-only).
-          Sits above the quick-convert bar (bottom-24 sm:bottom-28) so the two never overlap. */}
-      <div className="absolute bottom-40 sm:bottom-44 left-0 right-0 z-30 flex justify-center pointer-events-none">
+      {/* Bottom-center stack: time scrub above the quick-convert bar, in one
+          column so the converter's results push the scrub up instead of
+          colliding with it. Desktop-only — mobile has its own Convert tab. */}
+      <div className="absolute bottom-24 sm:bottom-28 left-0 right-0 z-30 hidden sm:flex flex-col items-center gap-2 pointer-events-none px-4">
         <TimeScrubControl
           offsetMs={viewedOffsetMs}
           viewedDate={viewedDate}
           onChange={setViewedOffsetMs}
           onReset={() => setViewedOffsetMs(null)}
         />
+        <MemoizedQuickConvert variant="embedded" />
       </div>
 
       {/* Footer credits */}

@@ -13,7 +13,11 @@ import {
 type ParsedQuery = {
   hour: number;
   minute: number;
-  fromCity: TimezoneCity;
+  /** null = the user's own timezone */
+  fromCity: TimezoneCity | null;
+  /** Explicit targets from "to"/"in" syntax; null = user's timezone (legacy
+      direction), or — when fromCity is also null — a default world snapshot. */
+  toCities: TimezoneCity[] | null;
 };
 
 /**
@@ -83,12 +87,73 @@ function resolveLocation(location: string): TimezoneCity | null {
   return null;
 }
 
+/** Current wall-clock time in a timezone, as {hour, minute}. */
+function nowInTimezone(timezone: string): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, hour: "numeric", minute: "numeric", hour12: false,
+  }).formatToParts(new Date());
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
+  const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
+  return { hour: hour === 24 ? 0 : hour, minute };
+}
+
 /**
- * Parse a full query like "6pm London", "14:00 Tokyo", "3pm EST", "18:00 UTC+1"
+ * Parse a full query. Supported shapes:
+ *   "6pm London" / "London 6pm"  → that city's 6pm in the user's timezone
+ *   "5pm to London" / "5pm in London" → the USER's 5pm in London
+ *   "5pm to London, Tokyo"       → the user's 5pm in several cities
+ *   "3pm EST in Tokyo"           → 3pm EST shown in Tokyo
+ *   "London to Tokyo"            → now in London shown in Tokyo
+ *   "5pm"                        → the user's 5pm around the world
+ *   "Tokyo now" / "Tokyo"        → current time there in the user's timezone
  */
 function parseQuery(input: string): ParsedQuery | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
+
+  // Directional: "<time> [source] (to|in) <target[, target…]>"
+  const dirMatch = trimmed.match(/^(.+?)\s+(?:to|in)\s+(.+)$/i);
+  if (dirMatch) {
+    const [, left, right] = dirMatch;
+    let time = parseTime(left);
+    let fromCity: TimezoneCity | null = null;
+    if (!time) {
+      // "3pm EST in Tokyo" — time + explicit source on the left
+      const tf = left.match(/^(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s+(.+)$/i);
+      if (tf) {
+        const t = parseTime(tf[1]);
+        const src = resolveLocation(tf[2]);
+        if (t && src) {
+          time = t;
+          fromCity = src;
+        }
+      }
+      // "London to Tokyo" — bare source city means "now there"
+      if (!time) {
+        const src = resolveLocation(left);
+        if (src) {
+          time = nowInTimezone(src.timezone);
+          fromCity = src;
+        }
+      }
+    }
+    if (time) {
+      const targets = right
+        .split(/\s*,\s*|\s+and\s+/i)
+        .filter(Boolean)
+        .map(resolveLocation);
+      if (targets.length > 0 && targets.every((t): t is TimezoneCity => t !== null)) {
+        return { hour: time.hour, minute: time.minute, fromCity, toCities: targets };
+      }
+    }
+    // Direction parse failed — fall through to the legacy shapes below.
+  }
+
+  // Bare time: "5pm" → the user's 5pm, shown around the world
+  const bareTime = parseTime(trimmed);
+  if (bareTime) {
+    return { hour: bareTime.hour, minute: bareTime.minute, fromCity: null, toCities: null };
+  }
 
   // Try splitting: time first, then location
   // Strategy: try progressively longer time prefixes
@@ -105,7 +170,7 @@ function parseQuery(input: string): ParsedQuery | null {
     const time = parseTime(timeFirstMatch[1]);
     const city = resolveLocation(timeFirstMatch[2]);
     if (time && city) {
-      return { hour: time.hour, minute: time.minute, fromCity: city };
+      return { hour: time.hour, minute: time.minute, fromCity: city, toCities: null };
     }
   }
 
@@ -117,7 +182,7 @@ function parseQuery(input: string): ParsedQuery | null {
     const time = parseTime(locationFirstMatch[2]);
     const city = resolveLocation(locationFirstMatch[1]);
     if (time && city) {
-      return { hour: time.hour, minute: time.minute, fromCity: city };
+      return { hour: time.hour, minute: time.minute, fromCity: city, toCities: null };
     }
   }
 
@@ -126,24 +191,16 @@ function parseQuery(input: string): ParsedQuery | null {
   if (nowMatch) {
     const city = resolveLocation(nowMatch[1]);
     if (city) {
-      const parts = new Intl.DateTimeFormat("en-US", {
-        timeZone: city.timezone, hour: "numeric", minute: "numeric", hour12: false,
-      }).formatToParts(new Date());
-      const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
-      const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
-      return { hour: hour === 24 ? 0 : hour, minute, fromCity: city };
+      const { hour, minute } = nowInTimezone(city.timezone);
+      return { hour, minute, fromCity: city, toCities: null };
     }
   }
 
   // Try: just a city name (e.g. "London") → treat as "now"
   const city = resolveLocation(trimmed);
   if (city) {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: city.timezone, hour: "numeric", minute: "numeric", hour12: false,
-    }).formatToParts(new Date());
-    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0");
-    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0");
-    return { hour: hour === 24 ? 0 : hour, minute, fromCity: city };
+    const { hour, minute } = nowInTimezone(city.timezone);
+    return { hour, minute, fromCity: city, toCities: null };
   }
 
   return null;
@@ -157,7 +214,7 @@ function convertTime(
   minute: number,
   fromTz: string,
   toTz: string
-): string {
+): { time: string; dayLabel: string | null } {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: fromTz,
@@ -174,12 +231,19 @@ function convertTime(
   );
   const diff = (hour - currentH) * 60 + (minute - currentM);
   const targetDate = new Date(now.getTime() + diff * 60 * 1000);
-  return new Intl.DateTimeFormat("en-US", {
+  const time = new Intl.DateTimeFormat("en-US", {
     timeZone: toTz,
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   }).format(targetDate);
+  // Flag when the converted time lands on a different calendar day than the
+  // source moment — "10:00 PM in Tokyo (Fri)" reads clearer than a bare time.
+  const dayIn = (tz: string) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(targetDate);
+  const sourceDay = dayIn(fromTz);
+  const targetDay = dayIn(toTz);
+  return { time, dayLabel: targetDay !== sourceDay ? targetDay : null };
 }
 
 function formatInputTime(hour: number, minute: number): string {
@@ -191,18 +255,24 @@ function formatInputTime(hour: number, minute: number): string {
 
 const PLACEHOLDER_EXAMPLES = [
   "Try: 6pm London",
-  "Try: 3pm EST in Tokyo",
+  "Try: 5pm in Tokyo",
+  "Try: 9am to London, Tokyo",
+  "Try: 3pm EST in Singapore",
   "Try: Tokyo now",
-  "Try: 14:00 Berlin",
 ];
+
+// Targets for a bare-time query like "5pm" — a small world snapshot.
+const WORLD_SNAPSHOT_CITIES = ["London", "New York", "Tokyo"];
 
 export function QuickConvert({
   variant = "floating",
 }: {
-  variant?: "floating" | "inline";
+  /** "floating" = self-positioned fixed bar; "inline" = card in page flow;
+      "embedded" = same look as floating but positioned by the parent. */
+  variant?: "floating" | "inline" | "embedded";
 }) {
   const [input, setInput] = useState("");
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<string[] | null>(null);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -228,19 +298,44 @@ export function QuickConvert({
       return;
     }
 
-    const { hour, minute, fromCity } = parsed;
-    const fromFlag = countryFlag(fromCity.country);
+    const { hour, minute, fromCity, toCities } = parsed;
+
+    const userName =
+      userCity.current?.name ||
+      userTz.current.split("/").pop()?.replace(/_/g, " ") ||
+      "your timezone";
+    const userFlag = userCity.current ? countryFlag(userCity.current.country) : "🕐";
+
+    const fromTz = fromCity ? fromCity.timezone : userTz.current;
+    const fromName = fromCity ? fromCity.name : userName;
+    const fromFlag = fromCity ? countryFlag(fromCity.country) : userFlag;
     const fromTimeStr = formatInputTime(hour, minute);
 
-    const toTz = userTz.current;
-    const convertedTime = convertTime(hour, minute, fromCity.timezone, toTz);
-
-    const toCity = userCity.current;
-    const toName = toCity ? toCity.name : toTz.split("/").pop()?.replace(/_/g, " ") || "your timezone";
-    const toFlag = toCity ? countryFlag(toCity.country) : "";
+    // Resolve targets: explicit list, the user's own timezone (legacy
+    // direction), or — for a bare time like "5pm" — a small world snapshot.
+    let targets: { name: string; flag: string; timezone: string }[];
+    if (toCities) {
+      targets = toCities.map((c) => ({
+        name: c.name,
+        flag: countryFlag(c.country),
+        timezone: c.timezone,
+      }));
+    } else if (fromCity) {
+      targets = [{ name: userName, flag: userFlag, timezone: userTz.current }];
+    } else {
+      targets = WORLD_SNAPSHOT_CITIES.map((name) =>
+        timezoneCities.find((c) => c.name === name)
+      )
+        .filter((c): c is TimezoneCity => !!c && c.timezone !== userTz.current)
+        .map((c) => ({ name: c.name, flag: countryFlag(c.country), timezone: c.timezone }));
+    }
 
     setResult(
-      `${fromFlag} ${fromTimeStr} in ${fromCity.name} = ${toFlag} ${convertedTime} in ${toName}`
+      targets.map((t) => {
+        const { time, dayLabel } = convertTime(hour, minute, fromTz, t.timezone);
+        const day = dayLabel ? ` (${dayLabel})` : "";
+        return `${fromFlag} ${fromTimeStr} in ${fromName} = ${t.flag} ${time} in ${t.name}${day}`;
+      })
     );
   }, []);
 
@@ -295,7 +390,7 @@ export function QuickConvert({
   return (
     <div
       className={
-        isInline
+        isInline || variant === "embedded"
           ? "w-full flex justify-center"
           : "fixed bottom-24 sm:bottom-28 left-0 right-0 z-20 pointer-events-none flex justify-center px-4"
       }
@@ -332,7 +427,7 @@ export function QuickConvert({
             value={input}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            className="w-full bg-transparent pl-9 pr-8 py-1.5 text-sm outline-none placeholder:text-muted-foreground/60"
+            className="w-full bg-transparent pl-9 pr-8 py-1.5 text-sm outline-none placeholder:text-muted-foreground/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
           />
           {input && (
             <button
@@ -359,8 +454,10 @@ export function QuickConvert({
         </div>
         <div aria-live="polite" aria-atomic="true" role="status">
           {result && (
-            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1">
-              {result}
+            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1 space-y-0.5">
+              {result.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
             </div>
           )}
         </div>

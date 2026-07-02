@@ -242,13 +242,9 @@ export function HomeTabs() {
       {/* Body */}
       {view === "map" ? (
         <div className="h-[calc(100dvh-3rem)] sm:h-screen w-full">
+          {/* The desktop quick-convert bar renders inside the map, stacked
+              with the time scrub control. Mobile has its own Convert tab. */}
           <TimezoneMapLoader />
-          {/* Keep the quick converter on the map for desktop so users don't
-              need an extra click. Hidden on mobile, which has its own Convert
-              tab. */}
-          <div className="hidden sm:block">
-            <QuickConvert />
-          </div>
         </div>
       ) : (
         <ConvertView onOpenMap={openMap} />
