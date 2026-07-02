@@ -224,6 +224,7 @@ export function ComparisonPage({
         <div className="flex justify-center mb-10">
           <Link
             href={`/?compare=${encodeURIComponent(cityA.name)},${encodeURIComponent(cityB.name)}`}
+            rel="nofollow"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <svg
