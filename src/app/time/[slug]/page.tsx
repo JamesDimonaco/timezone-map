@@ -17,7 +17,10 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-export const revalidate = 86400;
+// Fully static: these pages are derived entirely from the static city dataset
+// (the live clock is a client component), so they only ever change on deploy.
+// No runtime revalidation = no Fluid Compute on crawler traffic.
+export const revalidate = false;
 
 export async function generateStaticParams() {
   const citySlugs = getAllCitySlugs().map((slug) => ({ slug }));
