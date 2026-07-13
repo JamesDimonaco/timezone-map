@@ -39,6 +39,8 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Seattle", country: "US", lat: 47.6062, lng: -122.3321, timezone: "America/Los_Angeles", utcOffset: "UTC-8" },
   { name: "Vancouver", country: "Canada", lat: 49.2827, lng: -123.1207, timezone: "America/Vancouver", utcOffset: "UTC-8" },
   { name: "Portland", country: "US", lat: 45.5152, lng: -122.6784, timezone: "America/Los_Angeles", utcOffset: "UTC-8" },
+  { name: "San Diego", country: "US", lat: 32.7157, lng: -117.1611, timezone: "America/Los_Angeles", utcOffset: "UTC-8" },
+  { name: "Las Vegas", country: "US", lat: 36.1699, lng: -115.1398, timezone: "America/Los_Angeles", utcOffset: "UTC-8" },
 
   // UTC-7
   { name: "Denver", country: "US", lat: 39.7392, lng: -104.9903, timezone: "America/Denver", utcOffset: "UTC-7" },
@@ -54,6 +56,7 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Austin", country: "US", lat: 30.2672, lng: -97.7431, timezone: "America/Chicago", utcOffset: "UTC-6" },
   { name: "Winnipeg", country: "Canada", lat: 49.8951, lng: -97.1384, timezone: "America/Winnipeg", utcOffset: "UTC-6" },
   { name: "Guatemala City", country: "Guatemala", lat: 14.6349, lng: -90.5069, timezone: "America/Guatemala", utcOffset: "UTC-6" },
+  { name: "Minneapolis", country: "US", lat: 44.9778, lng: -93.2650, timezone: "America/Chicago", utcOffset: "UTC-6" },
   { name: "San José", country: "Costa Rica", lat: 9.9281, lng: -84.0907, timezone: "America/Costa_Rica", utcOffset: "UTC-6" },
 
   // UTC-5
@@ -64,10 +67,17 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Boston", country: "US", lat: 42.3601, lng: -71.0589, timezone: "America/New_York", utcOffset: "UTC-5" },
   { name: "Atlanta", country: "US", lat: 33.7490, lng: -84.3880, timezone: "America/New_York", utcOffset: "UTC-5" },
   { name: "Montreal", country: "Canada", lat: 45.5017, lng: -73.5673, timezone: "America/Toronto", utcOffset: "UTC-5" },
+  { name: "Philadelphia", country: "US", lat: 39.9526, lng: -75.1652, timezone: "America/New_York", utcOffset: "UTC-5" },
+  { name: "Detroit", country: "US", lat: 42.3314, lng: -83.0458, timezone: "America/Detroit", utcOffset: "UTC-5" },
+  { name: "Ottawa", country: "Canada", lat: 45.4215, lng: -75.6972, timezone: "America/Toronto", utcOffset: "UTC-5" },
   { name: "Bogota", country: "Colombia", lat: 4.7110, lng: -74.0721, timezone: "America/Bogota", utcOffset: "UTC-5" },
   { name: "Lima", country: "Peru", lat: -12.0464, lng: -77.0428, timezone: "America/Lima", utcOffset: "UTC-5" },
   { name: "Havana", country: "Cuba", lat: 23.1136, lng: -82.3666, timezone: "America/Havana", utcOffset: "UTC-5" },
   { name: "Panama City", country: "Panama", lat: 8.9824, lng: -79.5199, timezone: "America/Panama", utcOffset: "UTC-5" },
+  { name: "Medellín", country: "Colombia", lat: 6.2442, lng: -75.5812, timezone: "America/Bogota", utcOffset: "UTC-5" },
+  { name: "Quito", country: "Ecuador", lat: -0.1807, lng: -78.4678, timezone: "America/Guayaquil", utcOffset: "UTC-5" },
+  { name: "Cancún", country: "Mexico", lat: 21.1619, lng: -86.8515, timezone: "America/Cancun", utcOffset: "UTC-5" },
+  { name: "Kingston", country: "Jamaica", lat: 18.0179, lng: -76.8099, timezone: "America/Jamaica", utcOffset: "UTC-5" },
 
   // UTC-4
   { name: "Santiago", country: "Chile", lat: -33.4489, lng: -70.6693, timezone: "America/Santiago", utcOffset: "UTC-4" },
@@ -84,6 +94,7 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Buenos Aires", country: "Argentina", lat: -34.6037, lng: -58.3816, timezone: "America/Argentina/Buenos_Aires", utcOffset: "UTC-3" },
   { name: "Rio de Janeiro", country: "Brazil", lat: -22.9068, lng: -43.1729, timezone: "America/Sao_Paulo", utcOffset: "UTC-3" },
   { name: "Montevideo", country: "Uruguay", lat: -34.9011, lng: -56.1645, timezone: "America/Montevideo", utcOffset: "UTC-3" },
+  { name: "Brasília", country: "Brazil", lat: -15.7939, lng: -47.8828, timezone: "America/Sao_Paulo", utcOffset: "UTC-3" },
 
   // UTC-2
   { name: "South Georgia", country: "UK", lat: -54.2500, lng: -36.7500, timezone: "Atlantic/South_Georgia", utcOffset: "UTC-2" },
@@ -100,6 +111,9 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Accra", country: "Ghana", lat: 5.6037, lng: -0.1870, timezone: "Africa/Accra", utcOffset: "UTC+0" },
   { name: "Casablanca", country: "Morocco", lat: 33.5731, lng: -7.5898, timezone: "Africa/Casablanca", utcOffset: "UTC+0" },
   { name: "Edinburgh", country: "UK", lat: 55.9533, lng: -3.1883, timezone: "Europe/London", utcOffset: "UTC+0" },
+  { name: "Manchester", country: "UK", lat: 53.4808, lng: -2.2426, timezone: "Europe/London", utcOffset: "UTC+0" },
+  { name: "Marrakech", country: "Morocco", lat: 31.6295, lng: -7.9811, timezone: "Africa/Casablanca", utcOffset: "UTC+0" },
+  { name: "Dakar", country: "Senegal", lat: 14.7167, lng: -17.4677, timezone: "Africa/Dakar", utcOffset: "UTC+0" },
 
   // UTC+1
   { name: "Paris", country: "France", lat: 48.8566, lng: 2.3522, timezone: "Europe/Paris", utcOffset: "UTC+1" },
@@ -119,6 +133,10 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Barcelona", country: "Spain", lat: 41.3874, lng: 2.1686, timezone: "Europe/Madrid", utcOffset: "UTC+1" },
   { name: "Lagos", country: "Nigeria", lat: 6.5244, lng: 3.3792, timezone: "Africa/Lagos", utcOffset: "UTC+1" },
   { name: "Algiers", country: "Algeria", lat: 36.7538, lng: 3.0588, timezone: "Africa/Algiers", utcOffset: "UTC+1" },
+  { name: "Frankfurt", country: "Germany", lat: 50.1109, lng: 8.6821, timezone: "Europe/Berlin", utcOffset: "UTC+1" },
+  { name: "Milan", country: "Italy", lat: 45.4642, lng: 9.1900, timezone: "Europe/Rome", utcOffset: "UTC+1" },
+  { name: "Budapest", country: "Hungary", lat: 47.4979, lng: 19.0402, timezone: "Europe/Budapest", utcOffset: "UTC+1" },
+  { name: "Geneva", country: "Switzerland", lat: 46.2044, lng: 6.1432, timezone: "Europe/Zurich", utcOffset: "UTC+1" },
 
   // UTC+2
   { name: "Cairo", country: "Egypt", lat: 30.0444, lng: 31.2357, timezone: "Africa/Cairo", utcOffset: "UTC+2" },
@@ -130,6 +148,7 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Cape Town", country: "South Africa", lat: -33.9249, lng: 18.4241, timezone: "Africa/Johannesburg", utcOffset: "UTC+2" },
   { name: "Tel Aviv", country: "Israel", lat: 32.0853, lng: 34.7818, timezone: "Asia/Jerusalem", utcOffset: "UTC+2" },
   { name: "Beirut", country: "Lebanon", lat: 33.8938, lng: 35.5018, timezone: "Asia/Beirut", utcOffset: "UTC+2" },
+  { name: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, timezone: "Asia/Jerusalem", utcOffset: "UTC+2" },
 
   // UTC+3
   { name: "Moscow", country: "Russia", lat: 55.7558, lng: 37.6173, timezone: "Europe/Moscow", utcOffset: "UTC+3" },
@@ -141,6 +160,8 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Addis Ababa", country: "Ethiopia", lat: 9.0250, lng: 38.7469, timezone: "Africa/Addis_Ababa", utcOffset: "UTC+3" },
   { name: "Baghdad", country: "Iraq", lat: 33.3152, lng: 44.3661, timezone: "Asia/Baghdad", utcOffset: "UTC+3" },
   { name: "Ankara", country: "Turkey", lat: 39.9334, lng: 32.8597, timezone: "Europe/Istanbul", utcOffset: "UTC+3" },
+  { name: "Amman", country: "Jordan", lat: 31.9539, lng: 35.9106, timezone: "Asia/Amman", utcOffset: "UTC+3" },
+  { name: "Dar es Salaam", country: "Tanzania", lat: -6.7924, lng: 39.2083, timezone: "Africa/Dar_es_Salaam", utcOffset: "UTC+3" },
 
   // UTC+3:30
   { name: "Tehran", country: "Iran", lat: 35.6892, lng: 51.3890, timezone: "Asia/Tehran", utcOffset: "UTC+3:30" },
@@ -186,6 +207,7 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Ho Chi Minh City", country: "Vietnam", lat: 10.8231, lng: 106.6297, timezone: "Asia/Ho_Chi_Minh", utcOffset: "UTC+7" },
   { name: "Hanoi", country: "Vietnam", lat: 21.0278, lng: 105.8342, timezone: "Asia/Ho_Chi_Minh", utcOffset: "UTC+7" },
   { name: "Phnom Penh", country: "Cambodia", lat: 11.5564, lng: 104.9282, timezone: "Asia/Phnom_Penh", utcOffset: "UTC+7" },
+  { name: "Chiang Mai", country: "Thailand", lat: 18.7883, lng: 98.9853, timezone: "Asia/Bangkok", utcOffset: "UTC+7" },
 
   // UTC+8
   { name: "Beijing", country: "China", lat: 39.9042, lng: 116.4074, timezone: "Asia/Shanghai", utcOffset: "UTC+8" },
@@ -197,6 +219,8 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Kuala Lumpur", country: "Malaysia", lat: 3.1390, lng: 101.6869, timezone: "Asia/Kuala_Lumpur", utcOffset: "UTC+8" },
   { name: "Manila", country: "Philippines", lat: 14.5995, lng: 120.9842, timezone: "Asia/Manila", utcOffset: "UTC+8" },
   { name: "Shenzhen", country: "China", lat: 22.5431, lng: 114.0579, timezone: "Asia/Shanghai", utcOffset: "UTC+8" },
+  { name: "Denpasar", country: "Indonesia", lat: -8.6705, lng: 115.2126, timezone: "Asia/Makassar", utcOffset: "UTC+8" },
+  { name: "Cebu", country: "Philippines", lat: 10.3157, lng: 123.8854, timezone: "Asia/Manila", utcOffset: "UTC+8" },
 
   // UTC+9
   { name: "Tokyo", country: "Japan", lat: 35.6762, lng: 139.6503, timezone: "Asia/Tokyo", utcOffset: "UTC+9" },
@@ -220,6 +244,7 @@ export const timezoneCities: TimezoneCity[] = [
   { name: "Auckland", country: "New Zealand", lat: -36.8485, lng: 174.7633, timezone: "Pacific/Auckland", utcOffset: "UTC+12" },
   { name: "Wellington", country: "New Zealand", lat: -41.2865, lng: 174.7762, timezone: "Pacific/Auckland", utcOffset: "UTC+12" },
   { name: "Fiji", country: "Fiji", lat: -17.7134, lng: 178.0650, timezone: "Pacific/Fiji", utcOffset: "UTC+12" },
+  { name: "Christchurch", country: "New Zealand", lat: -43.5321, lng: 172.6362, timezone: "Pacific/Auckland", utcOffset: "UTC+12" },
 
   // UTC+13
   { name: "Apia", country: "Samoa", lat: -13.8333, lng: -171.7500, timezone: "Pacific/Apia", utcOffset: "UTC+13" },
