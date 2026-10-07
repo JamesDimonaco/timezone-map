@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Clock, Globe, Map as MapIcon, ArrowRight } from "lucide-react";
 import { TimezoneMapLoader } from "@/components/timezone-map-loader";
 import { QuickConvert, QUICK_CONVERT_TRY_EVENT } from "@/components/quick-convert";
+import { HomeGuide } from "@/components/home-guide";
 import { SiteFooter } from "@/components/site-footer";
 import { WhatsNew } from "@/components/whats-new";
 import { cn } from "@/lib/utils";
@@ -201,6 +202,7 @@ function ConvertView({ onOpenMap }: { onOpenMap: () => void }) {
           </Link>
         </div>
       </div>
+      <HomeGuide />
       <SiteFooter />
     </div>
   );

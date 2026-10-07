@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
@@ -167,7 +166,6 @@ export default function AboutPage() {
           </section>
         </div>
 
-        <AdBanner placement="static-pages" className="mt-12" />
       </div>
       <SiteFooter />
     </main>

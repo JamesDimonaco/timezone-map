@@ -9,7 +9,7 @@ export const AD_SLOTS = {
   "comparison-page": "7703966860",
   /** /compare team planner */
   "compare-planner": "7787727342",
-  /** about, privacy, API docs, /time index */
+  /** /time index */
   "static-pages": "1587939058",
 } as const;
 
