@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { ADSENSE_CLIENT } from "@/lib/ads";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -78,6 +79,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Timezones.live",
   },
+  // Lets AdSense verify ownership from the homepage without loading ads there.
+  other: { "google-adsense-account": ADSENSE_CLIENT },
 };
 
 export const viewport: Viewport = {
