@@ -266,7 +266,6 @@ const PLACEHOLDER_EXAMPLES = [
 // Targets for a bare-time query like "5pm" — a small world snapshot.
 const WORLD_SNAPSHOT_CITIES = ["London", "New York", "Tokyo"];
 
-// Clickable suggestions shown while the input is focused and empty.
 function describeDifference(fromTz: string, fromName: string, toTz: string, toName: string): string {
   const diff = getHourDifference(fromTz, toTz);
   if (diff === 0) return `${toName} is on the same time as ${fromName}`;
@@ -274,6 +273,7 @@ function describeDifference(fromTz: string, fromName: string, toTz: string, toNa
   return `${toName} is ${formatHourDifference(diff)} ${relation} ${fromName}`;
 }
 
+// Clickable suggestions shown while the input is focused and empty.
 const EXAMPLE_CHIPS = ["6pm London", "5pm to Tokyo", "9am to London, Tokyo"];
 
 /** CustomEvent name for dropping an example query into the converter
