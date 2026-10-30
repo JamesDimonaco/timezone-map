@@ -7,8 +7,10 @@ import {
   countryFlag,
   timezoneAbbreviations,
   timezoneCities,
+  getHourDifference,
   type TimezoneCity,
 } from "@/lib/timezones";
+import { formatHourDifference } from "@/lib/slugs";
 
 type ParsedQuery = {
   hour: number;
@@ -265,6 +267,13 @@ const PLACEHOLDER_EXAMPLES = [
 const WORLD_SNAPSHOT_CITIES = ["London", "New York", "Tokyo"];
 
 // Clickable suggestions shown while the input is focused and empty.
+function describeDifference(fromTz: string, fromName: string, toTz: string, toName: string): string {
+  const diff = getHourDifference(fromTz, toTz);
+  if (diff === 0) return `${toName} is on the same time as ${fromName}`;
+  const relation = diff > 0 ? "ahead of" : "behind";
+  return `${toName} is ${formatHourDifference(diff)} ${relation} ${fromName}`;
+}
+
 const EXAMPLE_CHIPS = ["6pm London", "5pm to Tokyo", "9am to London, Tokyo"];
 
 /** CustomEvent name for dropping an example query into the converter
@@ -279,7 +288,7 @@ export function QuickConvert({
   variant?: "floating" | "inline" | "embedded";
 }) {
   const [input, setInput] = useState("");
-  const [result, setResult] = useState<string[] | null>(null);
+  const [result, setResult] = useState<{ conversion: string; difference: string }[] | null>(null);
   const [focused, setFocused] = useState(false);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -342,7 +351,10 @@ export function QuickConvert({
       targets.map((t) => {
         const { time, dayLabel } = convertTime(hour, minute, fromTz, t.timezone);
         const day = dayLabel ? ` (${dayLabel})` : "";
-        return `${fromFlag} ${fromTimeStr} in ${fromName} = ${t.flag} ${time} in ${t.name}${day}`;
+        return {
+          conversion: `${fromFlag} ${fromTimeStr} in ${fromName} = ${t.flag} ${time} in ${t.name}${day}`,
+          difference: describeDifference(fromTz, fromName, t.timezone, t.name),
+        };
       })
     );
   }, []);
@@ -503,9 +515,12 @@ export function QuickConvert({
         )}
         <div aria-live="polite" aria-atomic="true" role="status">
           {result && (
-            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1 space-y-0.5">
-              {result.map((line) => (
-                <div key={line}>{line}</div>
+            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1 space-y-1.5">
+              {result.map(({ conversion, difference }) => (
+                <div key={conversion}>
+                  <div>{conversion}</div>
+                  <div className="text-xs text-muted-foreground">{difference}</div>
+                </div>
               ))}
             </div>
           )}
