@@ -304,6 +304,7 @@ export function QuickConvert({
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTrackedRef = useRef<string | null>(null);
   const posthog = usePostHog();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -362,22 +363,23 @@ export function QuickConvert({
         .map((c) => ({ name: c.name, flag: countryFlag(c.country), timezone: c.timezone }));
     }
 
-    setResult(
-      targets.map((t) => {
+    const lines = targets.map((t) => {
         const { time, dayLabel } = convertTime(hour, minute, fromTz, t.timezone);
         const day = dayLabel ? ` (${dayLabel})` : "";
         return {
           conversion: `${fromFlag} ${fromTimeStr} in ${fromName} = ${t.flag} ${time} in ${t.name}${day}`,
           difference: describeDifference(fromTz, fromName, t.timezone, t.name),
         };
-      })
-    );
-    return true;
+    });
+    setResult(lines);
+    return lines.length > 0;
   }, []);
 
   const clearTimers = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (settleRef.current) clearTimeout(settleRef.current);
+    if (copiedRef.current) clearTimeout(copiedRef.current);
+    settleRef.current = null;
   }, []);
 
   /** A query the user has finished entering: render it, show the error if it
@@ -389,7 +391,7 @@ export function QuickConvert({
       setUnparsed(!parsed && query !== "");
       if (!query || query === lastTrackedRef.current) return;
       lastTrackedRef.current = query;
-      posthog?.capture("converter_query", { query: query.slice(0, 100), parsed, source });
+      posthog?.capture("converter_query", { query: query.slice(0, 60), parsed, source });
     },
     [processQuery, posthog]
   );
@@ -399,10 +401,11 @@ export function QuickConvert({
     try {
       await navigator.clipboard.writeText(result.map((r) => r.conversion).join("\n"));
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedRef.current) clearTimeout(copiedRef.current);
+      copiedRef.current = setTimeout(() => setCopied(false), 2000);
       posthog?.capture("converter_result_copied", { lines: result.length });
     } catch {
-      // Clipboard API not available
+      // Clipboard missing or permission denied — nothing useful to show
     }
   }, [result, posthog]);
 
@@ -418,6 +421,7 @@ export function QuickConvert({
         processQuery(value);
       }, 300);
       settleRef.current = setTimeout(() => {
+        settleRef.current = null;
         settleQuery(value, "typed");
       }, SETTLE_MS);
     },
@@ -439,6 +443,7 @@ export function QuickConvert({
     setInput("");
     setResult(null);
     setUnparsed(false);
+    lastTrackedRef.current = null;
     setCopied(false);
     inputRef.current?.focus();
   }, [clearTimers]);
@@ -479,6 +484,7 @@ export function QuickConvert({
   }, [input]);
 
   const isInline = variant === "inline";
+  const hasResult = result !== null && result.length > 0;
 
   return (
     <div
@@ -521,7 +527,15 @@ export function QuickConvert({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onBlur={() => {
+              setFocused(false);
+              // Leaving before the typing pause ends (e.g. tapping a link)
+              // still counts the query as finished.
+              if (settleRef.current) {
+                clearTimers();
+                settleQuery(input, "typed");
+              }
+            }}
             className="w-full bg-transparent pl-9 pr-8 py-1.5 text-sm outline-none placeholder:text-muted-foreground/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
           />
           {input && (
@@ -566,10 +580,16 @@ export function QuickConvert({
             ))}
           </div>
         )}
-        <div aria-live="polite" aria-atomic="true" role="status">
-          {result && result.length > 0 && (
-            <div className="flex items-start gap-2 px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1">
-              <div className="flex-1 space-y-1.5">
+        <div
+          className={
+            hasResult || unparsed
+              ? "flex items-start gap-2 px-3 pb-1.5 pt-1 border-t border-border/50 mt-1"
+              : undefined
+          }
+        >
+          <div aria-live="polite" aria-atomic="true" role="status" className="flex-1 min-w-0 text-sm">
+            {hasResult && (
+              <div className="text-foreground/90 space-y-1.5">
                 {result.map(({ conversion, difference }) => (
                   <div key={conversion}>
                     <div>{conversion}</div>
@@ -577,21 +597,23 @@ export function QuickConvert({
                   </div>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                aria-label={copied ? "Copied" : "Copy result"}
-                title={copied ? "Copied" : "Copy result"}
-              >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          )}
-          {unparsed && (
-            <div className="px-3 pb-1.5 pt-1 text-sm text-muted-foreground border-t border-border/50 mt-1">
-              Couldn&apos;t read that. Try a time and a place, like &ldquo;6pm London&rdquo; or &ldquo;5pm to Tokyo&rdquo;.
-            </div>
+            )}
+            {unparsed && (
+              <div className="text-muted-foreground">
+                Couldn&apos;t read that. Try a time and a place, like &ldquo;6pm London&rdquo; or &ldquo;5pm to Tokyo&rdquo;.
+              </div>
+            )}
+          </div>
+          {hasResult && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              aria-label={copied ? "Copied" : "Copy result"}
+              title={copied ? "Copied" : "Copy result"}
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
           )}
         </div>
       </div>
