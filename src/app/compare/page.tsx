@@ -5,7 +5,6 @@ import {
   canonicalComparisonSlug,
 } from "@/lib/slugs";
 import { timezoneCities, countryFlag } from "@/lib/timezones";
-import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 import {
   CompareSearch,
@@ -201,9 +200,6 @@ export default function ComparePage() {
 
         {/* Search + filtered sections (client component) */}
         <CompareSearch comparisons={comparisons} cities={cityItems} />
-
-        {/* Ad */}
-        <AdBanner placement="compare-planner" className="my-12" />
 
         {/* Features */}
         <div className="mb-12">

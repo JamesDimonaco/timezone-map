@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePostHog } from "posthog-js/react";
+import { Check, Copy } from "lucide-react";
 import {
   searchCities,
   findCityForTimezone,
@@ -280,6 +282,13 @@ const EXAMPLE_CHIPS = ["6pm London", "5pm to Tokyo", "9am to London, Tokyo"];
     (dispatched by the What's New dialog). detail = the query string. */
 export const QUICK_CONVERT_TRY_EVENT = "quick-convert:try";
 
+// How long typing must pause before a query counts as "finished" — it gets
+// tracked and, if unreadable, the error shows. Shorter would log half-typed
+// queries and flash errors mid-word.
+const SETTLE_MS = 2000;
+
+type QuerySource = "typed" | "enter" | "example";
+
 export function QuickConvert({
   variant = "floating",
 }: {
@@ -290,8 +299,14 @@ export function QuickConvert({
   const [input, setInput] = useState("");
   const [result, setResult] = useState<{ conversion: string; difference: string }[] | null>(null);
   const [focused, setFocused] = useState(false);
+  const [unparsed, setUnparsed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [placeholder, setPlaceholder] = useState(PLACEHOLDER_EXAMPLES[0]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTrackedRef = useRef<string | null>(null);
+  const posthog = usePostHog();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const userTz = useRef<string>("UTC");
@@ -303,16 +318,17 @@ export function QuickConvert({
     userCity.current = findCityForTimezone(tz);
   }, []);
 
-  const processQuery = useCallback((value: string) => {
+  /** Renders the result for a query; returns whether it parsed. */
+  const processQuery = useCallback((value: string): boolean => {
     if (!value.trim()) {
       setResult(null);
-      return;
+      return false;
     }
 
     const parsed = parseQuery(value);
     if (!parsed) {
       setResult(null);
-      return;
+      return false;
     }
 
     const { hour, minute, fromCity, toCities } = parsed;
@@ -347,56 +363,100 @@ export function QuickConvert({
         .map((c) => ({ name: c.name, flag: countryFlag(c.country), timezone: c.timezone }));
     }
 
-    setResult(
-      targets.map((t) => {
+    const lines = targets.map((t) => {
         const { time, dayLabel } = convertTime(hour, minute, fromTz, t.timezone);
         const day = dayLabel ? ` (${dayLabel})` : "";
         return {
           conversion: `${fromFlag} ${fromTimeStr} in ${fromName} = ${t.flag} ${time} in ${t.name}${day}`,
           difference: describeDifference(fromTz, fromName, t.timezone, t.name),
         };
-      })
-    );
+    });
+    setResult(lines);
+    return lines.length > 0;
   }, []);
+
+  const clearTimers = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (settleRef.current) clearTimeout(settleRef.current);
+    if (copiedRef.current) clearTimeout(copiedRef.current);
+    settleRef.current = null;
+  }, []);
+
+  /** A query the user has finished entering: render it, show the error if it
+      didn't parse, and track it once. */
+  const settleQuery = useCallback(
+    (value: string, source: QuerySource) => {
+      const query = value.trim();
+      const parsed = processQuery(query);
+      setUnparsed(!parsed && query !== "");
+      if (!query || query === lastTrackedRef.current) return;
+      lastTrackedRef.current = query;
+      posthog?.capture("converter_query", { query: query.slice(0, 60), parsed, source });
+    },
+    [processQuery, posthog]
+  );
+
+  const handleCopy = useCallback(async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.map((r) => r.conversion).join("\n"));
+      setCopied(true);
+      if (copiedRef.current) clearTimeout(copiedRef.current);
+      copiedRef.current = setTimeout(() => setCopied(false), 2000);
+      posthog?.capture("converter_result_copied", { lines: result.length });
+    } catch {
+      // Clipboard missing or permission denied — nothing useful to show
+    }
+  }, [result, posthog]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setInput(value);
+      setUnparsed(false);
+      setCopied(false);
 
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearTimers();
       debounceRef.current = setTimeout(() => {
         processQuery(value);
       }, 300);
+      settleRef.current = setTimeout(() => {
+        settleRef.current = null;
+        settleQuery(value, "typed");
+      }, SETTLE_MS);
     },
-    [processQuery]
+    [processQuery, settleQuery, clearTimers]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        processQuery(input);
+        clearTimers();
+        settleQuery(input, "enter");
       }
     },
-    [input, processQuery]
+    [input, settleQuery, clearTimers]
   );
 
   const handleClear = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    clearTimers();
     setInput("");
     setResult(null);
+    setUnparsed(false);
+    lastTrackedRef.current = null;
+    setCopied(false);
     inputRef.current?.focus();
-  }, []);
+  }, [clearTimers]);
 
   const tryExample = useCallback(
     (query: string) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      clearTimers();
       setInput(query);
-      processQuery(query);
+      setCopied(false);
+      settleQuery(query, "example");
       inputRef.current?.focus();
     },
-    [processQuery]
+    [settleQuery, clearTimers]
   );
 
   // Accept example queries from elsewhere in the app (What's New dialog).
@@ -410,10 +470,8 @@ export function QuickConvert({
   }, [tryExample]);
 
   useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+    return clearTimers;
+  }, [clearTimers]);
 
   useEffect(() => {
     if (input) return;
@@ -426,6 +484,7 @@ export function QuickConvert({
   }, [input]);
 
   const isInline = variant === "inline";
+  const hasResult = result !== null && result.length > 0;
 
   return (
     <div
@@ -468,7 +527,15 @@ export function QuickConvert({
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onBlur={() => {
+              setFocused(false);
+              // Leaving before the typing pause ends (e.g. tapping a link)
+              // still counts the query as finished.
+              if (settleRef.current) {
+                clearTimers();
+                settleQuery(input, "typed");
+              }
+            }}
             className="w-full bg-transparent pl-9 pr-8 py-1.5 text-sm outline-none placeholder:text-muted-foreground/60 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
           />
           {input && (
@@ -513,16 +580,40 @@ export function QuickConvert({
             ))}
           </div>
         )}
-        <div aria-live="polite" aria-atomic="true" role="status">
-          {result && (
-            <div className="px-3 pb-1.5 pt-1 text-sm text-foreground/90 border-t border-border/50 mt-1 space-y-1.5">
-              {result.map(({ conversion, difference }) => (
-                <div key={conversion}>
-                  <div>{conversion}</div>
-                  <div className="text-xs text-muted-foreground">{difference}</div>
-                </div>
-              ))}
-            </div>
+        <div
+          className={
+            hasResult || unparsed
+              ? "flex items-start gap-2 px-3 pb-1.5 pt-1 border-t border-border/50 mt-1"
+              : undefined
+          }
+        >
+          <div aria-live="polite" aria-atomic="true" role="status" className="flex-1 min-w-0 text-sm">
+            {hasResult && (
+              <div className="text-foreground/90 space-y-1.5">
+                {result.map(({ conversion, difference }) => (
+                  <div key={conversion}>
+                    <div>{conversion}</div>
+                    <div className="text-xs text-muted-foreground">{difference}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {unparsed && (
+              <div className="text-muted-foreground">
+                Couldn&apos;t read that. Try a time and a place, like &ldquo;6pm London&rdquo; or &ldquo;5pm to Tokyo&rdquo;.
+              </div>
+            )}
+          </div>
+          {hasResult && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="shrink-0 mt-0.5 h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              aria-label={copied ? "Copied" : "Copy result"}
+              title={copied ? "Copied" : "Copy result"}
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
           )}
         </div>
       </div>
