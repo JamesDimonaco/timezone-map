@@ -7,8 +7,6 @@ export const AD_SLOTS = {
   "city-page": "2322848913",
   /** /time/[slug] "X to Y" comparison pages */
   "comparison-page": "7703966860",
-  /** /compare team planner */
-  "compare-planner": "7787727342",
   /** /time index */
   "static-pages": "1587939058",
 } as const;
