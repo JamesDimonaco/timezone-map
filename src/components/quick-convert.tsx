@@ -12,7 +12,9 @@ import {
   getHourDifference,
   type TimezoneCity,
 } from "@/lib/timezones";
-import { formatHourDifference } from "@/lib/slugs";
+import { cityToSlug, formatHourDifference } from "@/lib/slugs";
+import { recordRecentCity } from "@/lib/recent-cities";
+import { RecentCityChips, useRecentCities } from "@/components/recent-city-chips";
 
 type ParsedQuery = {
   hour: number;
@@ -275,7 +277,8 @@ function describeDifference(fromTz: string, fromName: string, toTz: string, toNa
   return `${toName} is ${formatHourDifference(diff)} ${relation} ${fromName}`;
 }
 
-// Clickable suggestions shown while the input is focused and empty.
+// Clickable suggestions shown while the input is focused and empty, until the
+// visitor has recent cities to show instead.
 const EXAMPLE_CHIPS = ["6pm London", "5pm to Tokyo", "9am to London, Tokyo"];
 
 /** CustomEvent name for dropping an example query into the converter
@@ -287,7 +290,7 @@ export const QUICK_CONVERT_TRY_EVENT = "quick-convert:try";
 // queries and flash errors mid-word.
 const SETTLE_MS = 2000;
 
-type QuerySource = "typed" | "enter" | "example";
+type QuerySource = "typed" | "enter" | "example" | "recent";
 
 export function QuickConvert({
   variant = "floating",
@@ -308,6 +311,7 @@ export function QuickConvert({
   const lastTrackedRef = useRef<string | null>(null);
   const posthog = usePostHog();
   const inputRef = useRef<HTMLInputElement>(null);
+  const recentCities = useRecentCities();
 
   const userTz = useRef<string>("UTC");
   const userCity = useRef<TimezoneCity | null>(null);
@@ -318,17 +322,18 @@ export function QuickConvert({
     userCity.current = findCityForTimezone(tz);
   }, []);
 
-  /** Renders the result for a query; returns whether it parsed. */
-  const processQuery = useCallback((value: string): boolean => {
+  /** Renders the result for a query; returns the parse, or null if it didn't
+      parse. */
+  const processQuery = useCallback((value: string): ParsedQuery | null => {
     if (!value.trim()) {
       setResult(null);
-      return false;
+      return null;
     }
 
     const parsed = parseQuery(value);
     if (!parsed) {
       setResult(null);
-      return false;
+      return null;
     }
 
     const { hour, minute, fromCity, toCities } = parsed;
@@ -372,7 +377,7 @@ export function QuickConvert({
         };
     });
     setResult(lines);
-    return lines.length > 0;
+    return lines.length > 0 ? parsed : null;
   }, []);
 
   const clearTimers = useCallback(() => {
@@ -389,9 +394,21 @@ export function QuickConvert({
       const query = value.trim();
       const parsed = processQuery(query);
       setUnparsed(!parsed && query !== "");
+      // Example chips are demos, not cities the visitor chose. Reversed so the
+      // first-named city ends up newest.
+      if (parsed && source !== "example") {
+        [parsed.fromCity, ...(parsed.toCities ?? [])]
+          .filter((c): c is TimezoneCity => c !== null)
+          .reverse()
+          .forEach((c) => recordRecentCity(cityToSlug(c.name)));
+      }
       if (!query || query === lastTrackedRef.current) return;
       lastTrackedRef.current = query;
-      posthog?.capture("converter_query", { query: query.slice(0, 60), parsed, source });
+      posthog?.capture("converter_query", {
+        query: query.slice(0, 60),
+        parsed: parsed !== null,
+        source,
+      });
     },
     [processQuery, posthog]
   );
@@ -449,14 +466,26 @@ export function QuickConvert({
   }, [clearTimers]);
 
   const tryExample = useCallback(
-    (query: string) => {
+    (query: string, source: QuerySource = "example") => {
       clearTimers();
       setInput(query);
       setCopied(false);
-      settleQuery(query, "example");
+      settleQuery(query, source);
       inputRef.current?.focus();
     },
     [settleQuery, clearTimers]
+  );
+
+  const pickRecent = useCallback(
+    (city: TimezoneCity, position: number) => {
+      posthog?.capture("recent_city_clicked", {
+        city_name: city.name,
+        position,
+        count: recentCities.length,
+      });
+      tryExample(city.name, "recent");
+    },
+    [posthog, recentCities.length, tryExample]
   );
 
   // Accept example queries from elsewhere in the app (What's New dialog).
@@ -561,7 +590,10 @@ export function QuickConvert({
             </button>
           )}
         </div>
-        {focused && !input && (
+        {recentCities.length > 0 && (
+          <RecentCityChips cities={recentCities} onPick={pickRecent} />
+        )}
+        {focused && !input && recentCities.length === 0 && (
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1.5 pt-1.5 border-t border-border/50 mt-1">
             <span className="text-xs text-muted-foreground/60">Try:</span>
             {EXAMPLE_CHIPS.map((example) => (

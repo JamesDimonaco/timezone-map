@@ -7,6 +7,7 @@ import {
 } from "@/lib/timezones";
 import { cityToSlug, getPopularComparisons } from "@/lib/slugs";
 import { TimeDisplay } from "@/components/time-display";
+import { RecordRecentCityVisit } from "@/components/recent-city-chips";
 import { CityCurrentTimeText } from "@/components/city-current-time-text";
 import { CityTodayBlock } from "@/components/city-today-block";
 import { CityDstBlock } from "@/components/city-dst-block";
@@ -212,6 +213,7 @@ export function CityPage({
         {/* Live clock */}
         <div className="flex justify-center mb-10">
           <TimeDisplay timezone={city.timezone} color={color} />
+          <RecordRecentCityVisit slug={slug} />
         </div>
 
         {/* Info cards */}
