@@ -25,7 +25,7 @@ An interactive world timezone map built with Next.js. Explore 60+ cities across 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 
 ### Install
 
