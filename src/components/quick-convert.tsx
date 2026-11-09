@@ -322,17 +322,18 @@ export function QuickConvert({
     userCity.current = findCityForTimezone(tz);
   }, []);
 
-  /** Renders the result for a query; returns whether it parsed. */
-  const processQuery = useCallback((value: string): boolean => {
+  /** Renders the result for a query; returns the parse, or null if it didn't
+      parse. */
+  const processQuery = useCallback((value: string): ParsedQuery | null => {
     if (!value.trim()) {
       setResult(null);
-      return false;
+      return null;
     }
 
     const parsed = parseQuery(value);
     if (!parsed) {
       setResult(null);
-      return false;
+      return null;
     }
 
     const { hour, minute, fromCity, toCities } = parsed;
@@ -376,7 +377,7 @@ export function QuickConvert({
         };
     });
     setResult(lines);
-    return lines.length > 0;
+    return lines.length > 0 ? parsed : null;
   }, []);
 
   const clearTimers = useCallback(() => {
@@ -393,20 +394,21 @@ export function QuickConvert({
       const query = value.trim();
       const parsed = processQuery(query);
       setUnparsed(!parsed && query !== "");
-      if (parsed) {
-        const q = parseQuery(query);
-        // Reversed so the first-named city ends up newest. A city on the
-        // visitor's own offset would just show their own clock, so it's
-        // skipped. Offsets, not tz ids: Chrome reports "Asia/Calcutta" where
-        // the city data says "Asia/Kolkata".
-        [q?.fromCity, ...(q?.toCities ?? [])]
-          .filter((c): c is TimezoneCity => !!c && getHourDifference(c.timezone, userTz.current) !== 0)
+      // Example chips are demos, not cities the visitor chose. Reversed so the
+      // first-named city ends up newest.
+      if (parsed && source !== "example") {
+        [parsed.fromCity, ...(parsed.toCities ?? [])]
+          .filter((c): c is TimezoneCity => c !== null)
           .reverse()
           .forEach((c) => recordRecentCity(cityToSlug(c.name)));
       }
       if (!query || query === lastTrackedRef.current) return;
       lastTrackedRef.current = query;
-      posthog?.capture("converter_query", { query: query.slice(0, 60), parsed, source });
+      posthog?.capture("converter_query", {
+        query: query.slice(0, 60),
+        parsed: parsed !== null,
+        source,
+      });
     },
     [processQuery, posthog]
   );

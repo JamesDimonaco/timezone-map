@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { countryFlag, formatTimeInTimezone, type TimezoneCity } from "@/lib/timezones";
+import {
+  countryFlag,
+  formatTimeInTimezone,
+  getHourDifference,
+  type TimezoneCity,
+} from "@/lib/timezones";
 import { getCityBySlug } from "@/lib/slugs";
 import {
   parseRecentCities,
@@ -19,14 +24,18 @@ export function RecordRecentCityVisit({ slug }: { slug: string }) {
 export function useRecentCities(): TimezoneCity[] {
   // Server snapshot is null, so recents only appear after hydration.
   const raw = useSyncExternalStore(subscribeRecentCities, readRecentCitiesRaw, () => null);
-  return useMemo(
-    () =>
-      parseRecentCities(raw).flatMap((slug) => {
-        const city = getCityBySlug(slug);
-        return city ? [city] : [];
-      }),
-    [raw]
-  );
+  return useMemo(() => {
+    if (raw === null) return [];
+    const ownTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // A city on the visitor's own offset would just repeat their own clock.
+    // Filtered here, not when saving, so it comes back once they travel.
+    // Offsets, not tz ids: Chrome reports "Asia/Calcutta" where the city data
+    // says "Asia/Kolkata".
+    return parseRecentCities(raw).flatMap((slug) => {
+      const city = getCityBySlug(slug);
+      return city && getHourDifference(city.timezone, ownTz) !== 0 ? [city] : [];
+    });
+  }, [raw]);
 }
 
 const ymd = (tz: string, date: Date) =>

@@ -45,7 +45,8 @@ export function recordRecentCity(slug: string): void {
 
 export function subscribeRecentCities(onChange: () => void): () => void {
   const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) onChange();
+    // key is null when another tab calls localStorage.clear()
+    if (e.key === STORAGE_KEY || e.key === null) onChange();
   };
   window.addEventListener(CHANGE_EVENT, onChange);
   window.addEventListener("storage", onStorage);
