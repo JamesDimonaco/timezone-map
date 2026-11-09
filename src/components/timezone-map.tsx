@@ -32,6 +32,7 @@ import {
 } from "@/components/country-timezone-layer";
 import Link from "next/link";
 import { cityToSlug } from "@/lib/slugs";
+import { recordRecentCity } from "@/lib/recent-cities";
 import { DayNightLayer } from "@/components/day-night-layer";
 import { ComparePanel, type PinnedTime } from "@/components/compare-panel";
 import { usePresence } from "@/hooks/use-presence";
@@ -806,6 +807,7 @@ export function TimezoneMap() {
       utc_offset: city.utcOffset,
       source: "search",
     });
+    recordRecentCity(cityToSlug(city.name));
     setPopupInfo({
       countryName: city.country,
       lngLat: { lng: city.lng, lat: city.lat },
@@ -996,6 +998,7 @@ export function TimezoneMap() {
                       utc_offset: city.utcOffset,
                       source: "map_marker",
                     });
+                    recordRecentCity(cityToSlug(city.name));
                     setPopupInfo({
                       countryName: city.country,
                       lngLat: { lng: city.lng, lat: city.lat },
