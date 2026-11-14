@@ -2,19 +2,21 @@ export type ThemePreference = "system" | "light" | "dark";
 
 export const THEME_STORAGE_KEY = "theme";
 
+const CHANGE_EVENT = "themechange";
+
 // Runs in <head> before first paint so a dark-mode visitor never sees a white
-// flash. It also follows OS changes while the preference is "system". It sets
-// "light" as well as "dark" because the map reads either class and only falls
-// back to the OS setting when neither is present.
+// flash. It is the only code that applies the theme: it re-runs on OS changes,
+// on other tabs' changes ("storage"), and when the toggle fires CHANGE_EVENT.
+// It sets "light" as well as "dark" because the map reads either class and
+// only falls back to the OS setting when neither is present.
 export const themeInitScript = `(function(){
 var k=${JSON.stringify(THEME_STORAGE_KEY)},m=matchMedia("(prefers-color-scheme: dark)");
 function a(){var p;try{p=localStorage.getItem(k)}catch(e){}
 var d=p==="dark"||(p!=="light"&&m.matches),c=document.documentElement.classList;
 c.toggle("dark",d);c.toggle("light",!d);document.documentElement.style.colorScheme=d?"dark":"light"}
-a();m.addEventListener("change",a);window.addEventListener("storage",function(e){if(e.key===k)a()});
+a();m.addEventListener("change",a);window.addEventListener(${JSON.stringify(CHANGE_EVENT)},a);
+window.addEventListener("storage",function(e){if(e.key===k)a()});
 })()`;
-
-const CHANGE_EVENT = "themechange";
 
 // Keeps every mounted toggle in step, including across tabs via "storage".
 export function subscribeThemePreference(onChange: () => void) {
@@ -39,13 +41,5 @@ export function setThemePreference(pref: ThemePreference) {
     if (pref === "system") localStorage.removeItem(THEME_STORAGE_KEY);
     else localStorage.setItem(THEME_STORAGE_KEY, pref);
   } catch {}
-  const dark =
-    pref === "dark" ||
-    (pref === "system" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-  const root = document.documentElement;
-  root.classList.toggle("dark", dark);
-  root.classList.toggle("light", !dark);
-  root.style.colorScheme = dark ? "dark" : "light";
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
