@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function SiteFooter() {
   return (
@@ -24,6 +25,7 @@ export function SiteFooter() {
           >
             API
           </Link>
+          <ThemeToggle className="-my-2" />
         </nav>
       </div>
     </footer>
