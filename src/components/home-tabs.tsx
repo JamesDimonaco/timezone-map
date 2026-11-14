@@ -8,6 +8,7 @@ import { QuickConvert, QUICK_CONVERT_TRY_EVENT } from "@/components/quick-conver
 import { HomeGuide } from "@/components/home-guide";
 import { SiteFooter } from "@/components/site-footer";
 import { WhatsNew } from "@/components/whats-new";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import {
   timezoneCities,
@@ -250,8 +251,9 @@ export function HomeTabs() {
       </header>
 
       {/* Desktop floating tab pill */}
-      <div className="hidden sm:flex fixed top-3 left-1/2 -translate-x-1/2 z-50">
+      <div className="hidden sm:flex fixed top-3 left-1/2 -translate-x-1/2 z-50 items-center gap-2">
         <SegmentedTabs view={view} onChange={setView} />
+        <ThemeToggle className="size-9 border bg-background/90 backdrop-blur-md shadow-sm" />
       </div>
 
       {/* Body */}
