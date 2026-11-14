@@ -18,13 +18,20 @@ function parseShortOffsetToMinutes(s: string): number {
   return sign * (parseInt(m[2], 10) * 60 + (m[3] ? parseInt(m[3], 10) : 0));
 }
 
+// Building a formatter is slow, and the share-time page reads offsets every second.
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+function offsetFormatter(timezone: string): Intl.DateTimeFormat {
+  let f = offsetFormatters.get(timezone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("en-US", { timeZone: timezone, timeZoneName: "shortOffset", hour: "numeric" });
+    offsetFormatters.set(timezone, f);
+  }
+  return f;
+}
+
 export function getOffsetMinutes(timezone: string, date: Date): number {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      timeZoneName: "shortOffset",
-      hour: "numeric",
-    }).formatToParts(date);
+    const parts = offsetFormatter(timezone).formatToParts(date);
     const offsetStr =
       parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT";
     return parseShortOffsetToMinutes(offsetStr);
