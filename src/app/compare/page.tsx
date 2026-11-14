@@ -6,6 +6,7 @@ import {
 } from "@/lib/slugs";
 import { timezoneCities, countryFlag } from "@/lib/timezones";
 import { SiteFooter } from "@/components/site-footer";
+import { ShareTimeButton } from "@/components/share-time-button";
 import {
   CompareSearch,
   type ComparisonItem,
@@ -169,6 +170,9 @@ export default function ComparePage() {
             time zones, see overlapping work hours, and share a link with your
             team — no sign-up needed.
           </p>
+          <div className="mt-6 flex justify-center">
+            <ShareTimeButton label="Share my time" />
+          </div>
         </div>
 
         {/* Quick-start presets */}

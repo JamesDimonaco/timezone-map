@@ -14,6 +14,7 @@ import { CityDstBlock } from "@/components/city-dst-block";
 import { CityHubsBlock } from "@/components/city-hubs-block";
 import { CityNearbyBlock } from "@/components/city-nearby-block";
 import { FaqList } from "@/components/faq-list";
+import { ShareTimeButton } from "@/components/share-time-button";
 import { AdBanner } from "@/components/ad-banner";
 import { SiteFooter } from "@/components/site-footer";
 import { getDstInfo } from "@/lib/dst";
@@ -248,8 +249,8 @@ export function CityPage({
           </div>
         </div>
 
-        {/* View on map CTA */}
-        <div className="flex justify-center mb-12">
+        {/* View on map + share CTAs */}
+        <div className="flex flex-wrap justify-center gap-3 mb-12">
           <Link
             href={`/?lat=${city.lat}&lng=${city.lng}&zoom=5&city=${encodeURIComponent(city.name)}`}
             rel="nofollow"
@@ -282,6 +283,7 @@ export function CityPage({
             </svg>
             View on map
           </Link>
+          <ShareTimeButton slug={cityToSlug(city.name)} label="Share this time" />
         </div>
 
         {/* About this timezone */}
