@@ -129,4 +129,9 @@
   .maplibregl-popup-tip {
     @apply hidden!;
   }
+  /* AdSense leaves an empty white iframe when it has no ad to show. Hide the
+     AdBanner wrapper too, so its margins don't leave a gap. */
+  div:has(> ins.adsbygoogle[data-ad-status="unfilled"]) {
+    @apply hidden!;
+  }
 }
