@@ -90,10 +90,39 @@ export function parseWithParam(value: string | null): Place[] {
   return places;
 }
 
+// Chrome still reports these pre-rename names; our city list uses the current ones.
+const LEGACY_ZONES: Record<string, string> = {
+  "Asia/Calcutta": "Asia/Kolkata",
+  "Europe/Kiev": "Europe/Kyiv",
+  "Asia/Saigon": "Asia/Ho_Chi_Minh",
+  "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+  "Asia/Katmandu": "Asia/Kathmandu",
+  "Asia/Rangoon": "Asia/Yangon",
+};
+
 /** The viewer's place: their exact city if we list it, else their current UTC offset. */
 export function placeForTimezone(timezone: string, instant: number): Place {
-  const city = timezoneCities.find((c) => c.timezone === timezone);
+  const zone = LEGACY_ZONES[timezone] ?? timezone;
+  const city = timezoneCities.find((c) => c.timezone === zone);
   if (city) return { kind: "city", city };
   // getOffsetMinutes returns 0 for a zone Intl doesn't know, so that lands on UTC.
   return { kind: "utc", offsetMinutes: getOffsetMinutes(timezone, new Date(instant)) };
+}
+
+export type Row = { place: Place; role: "shared" | "viewer" | "added" };
+
+/** Shared place, then the viewer, then added places: no repeats, at most MAX_ROWS. */
+export function buildRows(shared: Place, viewer: Place | null, added: Place[]): Row[] {
+  const rows: Row[] = [];
+  const seen = new Set<string>();
+  const push = (place: Place, role: Row["role"]) => {
+    const slug = placeSlug(place);
+    if (seen.has(slug) || rows.length === MAX_ROWS) return;
+    seen.add(slug);
+    rows.push({ place, role });
+  };
+  push(shared, "shared");
+  if (viewer) push(viewer, "viewer");
+  for (const place of added) push(place, "added");
+  return rows;
 }

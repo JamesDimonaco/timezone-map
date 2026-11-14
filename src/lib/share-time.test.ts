@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_ROWS,
+  buildRows,
   formatUtcOffset,
   offsetMinutesAt,
   parsePlaceSlug,
@@ -168,5 +169,45 @@ describe("placeForTimezone", () => {
 
   it("falls back to UTC for a zone Intl does not know", () => {
     expect(placeSlug(placeForTimezone("Not/AZone", at("2026-01-15T12:00:00Z")))).toBe("utc");
+  });
+});
+
+describe("placeForTimezone with legacy zone names", () => {
+  // Chrome still reports some pre-rename IANA names.
+  it.each([
+    ["Asia/Calcutta", "Asia/Kolkata"],
+    ["Europe/Kiev", "Europe/Kyiv"],
+    ["Asia/Saigon", "Asia/Ho_Chi_Minh"],
+    ["America/Buenos_Aires", "America/Argentina/Buenos_Aires"],
+    ["Asia/Katmandu", "Asia/Kathmandu"],
+    ["Asia/Rangoon", "Asia/Yangon"],
+  ])("maps %s to a %s city", (legacy, modern) => {
+    const place = placeForTimezone(legacy, at("2026-01-15T12:00:00Z"));
+    expect(place.kind === "city" && place.city.timezone).toBe(modern);
+  });
+});
+
+describe("buildRows", () => {
+  const slugs = (rows: { place: Place }[]) => rows.map((r) => placeSlug(r.place));
+
+  it("puts shared first, then the viewer, then added places", () => {
+    const rows = buildRows(city("tokyo"), city("london"), [city("paris")]);
+    expect(slugs(rows)).toEqual(["tokyo", "london", "paris"]);
+    expect(rows.map((r) => r.role)).toEqual(["shared", "viewer", "added"]);
+  });
+
+  it("never shows a place twice", () => {
+    const rows = buildRows(city("tokyo"), city("tokyo"), [city("tokyo"), city("paris"), city("paris")]);
+    expect(slugs(rows)).toEqual(["tokyo", "paris"]);
+  });
+
+  it("caps at MAX_ROWS, dropping the last added place before the viewer", () => {
+    const added = ["london", "paris", "dubai", "sydney"].map(city);
+    const rows = buildRows(city("tokyo"), city("new-york"), added);
+    expect(slugs(rows)).toEqual(["tokyo", "new-york", "london", "paris", "dubai"]);
+  });
+
+  it("works before the viewer is known", () => {
+    expect(slugs(buildRows(city("tokyo"), null, []))).toEqual(["tokyo"]);
   });
 });

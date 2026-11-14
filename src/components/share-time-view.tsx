@@ -7,6 +7,7 @@ import { countryFlag, searchCities } from "@/lib/timezones";
 import { parseTime } from "@/lib/parse-time";
 import {
   MAX_ROWS,
+  buildRows,
   formatUtcOffset,
   offsetMinutesAt,
   parsePlaceSlug,
@@ -76,17 +77,8 @@ export function ShareTimeView({ shared }: { shared: Place }) {
 
   const instant = picked ?? now;
 
-  const rows: { place: Place; role: "shared" | "viewer" | "added" }[] = [{ place: shared, role: "shared" }];
-  const seen = new Set([sharedSlug]);
-  if (viewer && !seen.has(placeSlug(viewer))) {
-    rows.push({ place: viewer, role: "viewer" });
-    seen.add(placeSlug(viewer));
-  }
-  for (const place of added) {
-    if (seen.has(placeSlug(place))) continue;
-    rows.push({ place, role: "added" });
-    seen.add(placeSlug(place));
-  }
+  const rows = buildRows(shared, viewer, added);
+  const seen = new Set(rows.map((r) => placeSlug(r.place)));
 
   const baseDay = instant === null ? 0 : wallClock(shared, instant).day;
 
@@ -157,7 +149,11 @@ export function ShareTimeView({ shared }: { shared: Place }) {
         {picked !== null && (
           <button
             type="button"
-            onClick={() => setPicked(null)}
+            onClick={() => {
+              // `now` froze while a time was picked; refresh it so "Now" isn't stale for a tick.
+              setNow(Date.now());
+              setPicked(null);
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border hover:bg-muted transition-colors"
           >
             <RotateCcw className="h-4 w-4" />
@@ -191,13 +187,18 @@ function PlaceRow({
   const [draft, setDraft] = useState("");
   // Unmounting the input fires blur, which would commit a draft Escape meant to cancel.
   const cancelled = useRef(false);
+  const initialDraft = useRef("");
 
   const clock = instant === null ? null : wallClock(place, instant);
   const offset = instant === null ? null : formatUtcOffset(offsetMinutesAt(place, instant));
   const dayDiff = clock ? clock.day - baseDay : 0;
 
   const commit = () => {
-    if (cancelled.current) return;
+    // An untouched draft is just the time already shown; committing it would freeze the clock.
+    if (cancelled.current || draft === initialDraft.current) {
+      setEditing(false);
+      return;
+    }
     const t = parseTime(draft);
     if (t) onTime(t.hour * 60 + t.minute);
     setEditing(false);
@@ -246,7 +247,9 @@ function PlaceRow({
               type="button"
               disabled={!clock}
               onClick={() => {
-                setDraft(clock ? formatMinutes(clock.minutesOfDay) : "");
+                const shown = clock ? formatMinutes(clock.minutesOfDay) : "";
+                setDraft(shown);
+                initialDraft.current = shown;
                 cancelled.current = false;
                 setEditing(true);
               }}
